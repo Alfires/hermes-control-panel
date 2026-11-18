@@ -1,5 +1,16 @@
 'use strict';
 // Hermes Control Deck - single-page UI. No framework, no build step, no CDN.
+if (location.search.includes('debug=1')) {
+  const showJsError = (msg) => {
+    let box = document.getElementById('js-error');
+    if (!box) { box = document.createElement('pre'); box.id = 'js-error';
+      box.style.cssText = 'position:fixed;z-index:9999;left:0;top:0;right:0;padding:12px;background:#b00020;color:#fff;font:13px monospace;white-space:pre-wrap';
+      document.body.appendChild(box); }
+    box.textContent = (box.textContent ? box.textContent + '\n' : '') + msg;
+  };
+  window.addEventListener('error', e => showJsError(`${e.message} @ ${e.filename}:${e.lineno}`));
+  window.addEventListener('unhandledrejection', e => showJsError('promise: ' + (e.reason && e.reason.message || e.reason)));
+}
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c =>
