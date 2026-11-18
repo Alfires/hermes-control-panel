@@ -69,11 +69,16 @@ install -o root -g root -m 0644 "$DIR/hostctl/panel-hostctl.service" /etc/system
 echo '{}' > "$SECRETS/critical-packages.json"
 systemctl daemon-reload
 systemctl enable --now panel-hostctl >/dev/null
+for i in $(seq 1 20); do
+  [ -S /run/panel-host.sock ] && break
+  sleep 0.5
+done
+[ -S /run/panel-host.sock ] || { echo "host broker socket did not appear" >&2; exit 1; }
 say "host-control broker: $(systemctl is-active panel-hostctl)"
 
-# 5. single container
+# 5. single container - force recreate so the socket mounts are the real files
 cd "$DIR"
-docker compose up -d --build >/dev/null
+docker compose up -d --build --force-recreate >/dev/null
 say "container: $(docker inspect -f '{{.State.Status}}' hermes-panel)"
 
 say "panel:  http://192.168.2.157:9120  (also on the Tailscale IP)"
