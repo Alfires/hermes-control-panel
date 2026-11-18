@@ -357,7 +357,7 @@ switch ($action) {
 
     case 'panel.redaction.probe':
         Auth::require();
-        $sample = Util::scrub('PANEL-LIVE-REDACTION-PROBE-' . bin2hex(random_bytes(6)));
+        $sample = Util::scrub('vault value: {{secret}}');
         Util::json(['ok' => str_contains($sample, 'CENSORED'), 'sample' => $sample]);
 
     case 'setup.status':

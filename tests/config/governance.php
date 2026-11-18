@@ -112,3 +112,15 @@ for ($i = 1; $i <= 15; $i++) {
         count_at_least(count($h), 3, "history $i too short");
     });
 }
+
+test('config.revision.append-after-rollback', static function (): void {
+    gov_fresh_db();
+    $a = ConfigGovernance::propose(gov_proposal('/meta/title', 'Append A'), 'owner');
+    ConfigGovernance::approve($a['proposal_id'], 'owner');
+    $b = ConfigGovernance::propose(gov_proposal('/meta/title', 'Append B'), 'owner');
+    ConfigGovernance::approve($b['proposal_id'], 'owner');
+    ConfigGovernance::rollback($a['revision'], 'owner');
+    $c = ConfigGovernance::propose(gov_proposal('/meta/title', 'Append C'), 'owner');
+    ok($c['ok'] === true, 'proposal after rollback failed: ' . json_encode($c));
+    ok($c['revision'] > $b['revision'], 'revision number reused after rollback');
+});

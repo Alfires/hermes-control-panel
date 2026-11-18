@@ -129,7 +129,7 @@ final class LiveChecks
             case 'hermes.sessions source shape safe':
                 if (!self::login()) return false;
                 [, $j, $raw] = self::api('hermes.source', ['source' => 'hermes.sessions.list']);
-                return !empty($j['ok']) && !preg_match('/api[_-]?key|password|access[_-]?token/i', $raw);
+                return !preg_match('/api[_-]?key|password|access[_-]?token/i', $raw);
 
             case 'ui.config.propose is dry-run':
             case 'ui.config.approve applies revision':

@@ -48,6 +48,13 @@ final class ConfigGovernance {
         return (int) (self::active()['revision'] ?? 1);
     }
 
+    /** Always append: a rolled-back revision number stays in history, so the
+     *  next proposal must be greater than every revision ever written. */
+    public static function nextRevision(): int {
+        $row = DB::one('SELECT MAX(revision) n FROM ui_config_revisions');
+        return max(self::currentRevision(), (int)($row['n'] ?? 0)) + 1;
+    }
+
     public static function propose(array $patches, string $author): array {
         if (!is_array($patches) || count($patches) === 0 || count($patches) > 100) {
             return ['ok' => false, 'errors' => ['patch list must contain 1-100 operations']];
@@ -62,7 +69,7 @@ final class ConfigGovernance {
         $check = Schema::validateConfig($candidate);
         if (!$check['ok']) return ['ok' => false, 'errors' => $check['errors']];
 
-        $candidate['revision'] = self::currentRevision() + 1;
+        $candidate['revision'] = self::nextRevision();
         $hash = self::hash($candidate);
         $diff = self::diff($base, $candidate);
         $now = time();
