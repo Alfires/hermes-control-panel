@@ -676,3 +676,23 @@ docker compose ps
 curl -fsS http://127.0.0.1:9120/health.php
 curl -fsS http://127.0.0.1:8642/health
 ```
+
+---
+
+<!-- PAGE BREAK -->
+
+## Page 22 — Git version history for agent changes (standing rule)
+
+Every change made by an agent — code, config, docs, UI proposals that become
+active, tests, and deploy scripts — must leave a version-history trail:
+
+1. Source changes are committed to the Forgejo repo with **semantic commit
+   messages** only (`feat:`, `fix:`, `style:`, `test:`, `docs:`, `chore:`,
+   `refactor:`, `perf:`). No agent turn ends with uncommitted source edits.
+2. Pushes happen only after the semantic commit is written; the commit message
+   must name the behaviour changed, not just “update” or “wip”.
+3. AI-editable UI changes additionally create a versioned config revision with
+   parent revision, hash, approval record and rollback path (see Page 10).
+4. The canonical checklist lives in `docs/TODO.md`; it is itself versioned in
+   git, so scope changes are auditable.
+
