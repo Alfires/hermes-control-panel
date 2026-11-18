@@ -351,6 +351,15 @@ switch ($action) {
             'detail' => json_decode($run['detail'], true), 'created_at' => (int)$run['created_at'],
         ] : null]);
 
+    case 'panel.host.probe':
+        Auth::require();
+        Util::json(HostCtl::probeForged());
+
+    case 'panel.redaction.probe':
+        Auth::require();
+        $sample = Util::scrub('PANEL-LIVE-REDACTION-PROBE-' . bin2hex(random_bytes(6)));
+        Util::json(['ok' => str_contains($sample, 'CENSORED'), 'sample' => $sample]);
+
     case 'setup.status':
         Util::json(Setup::status());
 

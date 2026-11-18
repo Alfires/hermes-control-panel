@@ -65,6 +65,26 @@ final class HostCtl {
         return $reply;
     }
 
+    /** Safe live probe: sends a deliberately forged privileged request and
+     *  reports whether the root-owned broker refused it. No state is changed. */
+    public static function probeForged(): array {
+        if (!self::available()) return ['ok' => false, 'error' => 'broker unavailable'];
+        $payload = [
+            'op' => 'action',
+            'action' => 'fix_service',
+            'args' => (object)['service' => 'live-probe'],
+            'requestor' => 'panel:live-probe',
+            'ts' => (string)time(),
+            'token' => 'bad-token',
+        ];
+        $reply = self::scrub(Util::sock(self::socket(), $payload, 5));
+        return [
+            'ok' => true,
+            'refused' => empty($reply['ok']),
+            'detail' => (string)($reply['error'] ?? 'no reply'),
+        ];
+    }
+
     private static function scrub($v) {
         if (is_string($v)) return Util::scrub($v);
         if (is_array($v)) {
