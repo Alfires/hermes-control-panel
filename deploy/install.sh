@@ -69,6 +69,7 @@ install -o root -g root -m 0644 "$DIR/hostctl/panel-hostctl.service" /etc/system
 echo '{}' > "$SECRETS/critical-packages.json"
 systemctl daemon-reload
 systemctl enable --now panel-hostctl >/dev/null
+systemctl restart panel-hostctl >/dev/null
 for i in $(seq 1 20); do
   [ -S /run/panel-host.sock ] && break
   sleep 0.5
