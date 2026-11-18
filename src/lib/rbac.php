@@ -93,6 +93,12 @@ final class RBAC {
             return [true, 'ok'];
         }
 
+        if ($tool === 'message_agent') {
+            $to = (string)($args['to'] ?? '');
+            if ($to === $agent['slug']) return [false, 'an agent cannot message itself'];
+            if (empty($agent['can_message'])) return [false, 'this agent does not allow messaging'];
+        }
+
         if (self::TOOLS[$tool]['risk'] === 'privileged') {
             if (!self::activeEscalation((int)$agent['id'], $tool)) {
                 return [false, "$tool needs a one-time approval; request escalation first"];

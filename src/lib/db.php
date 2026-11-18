@@ -1,12 +1,22 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/util.php';
+
 /** SQLite storage for the panel. Kept outside the image in /var/lib/panel. */
 final class DB {
     private static ?PDO $pdo = null;
 
     public static function path(): string {
-        return getenv('PANEL_DB') ?: '/var/lib/panel/panel.db';
+        return getenv('PANEL_DB') ?: (getenv('PANEL_DATA') ? rtrim((string)getenv('PANEL_DATA'), '/') . '/panel.db' : '/var/lib/panel/panel.db');
+    }
+
+    /** Re-open the connection (used by tests with a fresh PANEL_DB and by the
+     *  installer when it relocates the data directory). */
+    public static function init(): self {
+        self::$pdo = null;
+        self::pdo();
+        return new self();
     }
 
     public static function pdo(): PDO {
@@ -111,8 +121,64 @@ CREATE TABLE IF NOT EXISTS audit (
   actor TEXT NOT NULL,
   action TEXT NOT NULL,
   detail TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  prev_hash TEXT,
+  hash TEXT
+);
+CREATE TABLE IF NOT EXISTS ui_config_revisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  schema_version INTEGER NOT NULL,
+  revision INTEGER NOT NULL UNIQUE,
+  parent_revision INTEGER,
+  data TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'draft',
+  author TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  approval_id INTEGER,
+  test_result TEXT,
+  created_at INTEGER NOT NULL,
+  activated_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS ui_config_proposals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  revision_id INTEGER NOT NULL,
+  diff TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  decided_by TEXT,
+  decided_at INTEGER,
+  expires_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS hermes_cache (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  fetched_at INTEGER NOT NULL,
+  ttl INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stt_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  status TEXT NOT NULL,
+  duration REAL,
+  engine TEXT,
+  error TEXT,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS search_docs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,
+  ref_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS schedule_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  job TEXT NOT NULL,
+  status TEXT NOT NULL,
+  detail TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_search_doc ON search_docs(kind, ref_id);
 SQL);
     }
 
@@ -131,8 +197,26 @@ SQL);
         return self::run($sql, $args)->fetchAll();
     }
 
+    /** Append-only audit row with a SHA-256 hash chain. */
     public static function audit(string $actor, string $action, string $detail = ''): void {
-        self::run('INSERT INTO audit(actor,action,detail,created_at) VALUES(?,?,?,?)',
-            [$actor, $action, substr($detail, 0, 2000), time()]);
+        $detail = Util::scrub(substr($detail, 0, 2000));
+        $last = self::one('SELECT hash FROM audit WHERE hash IS NOT NULL ORDER BY id DESC LIMIT 1');
+        $prev = $last['hash'] ?? '';
+        $now = time();
+        $hash = hash('sha256', $prev . '|' . $actor . '|' . $action . '|' . $detail . '|' . $now);
+        self::run('INSERT INTO audit(actor,action,detail,created_at,prev_hash,hash) VALUES(?,?,?,?,?,?)',
+            [$actor, $action, $detail, $now, $prev, $hash]);
+    }
+
+    public static function verifyAuditChain(): bool {
+        $rows = self::all('SELECT * FROM audit ORDER BY id ASC');
+        $prev = '';
+        foreach ($rows as $r) {
+            if (($r['prev_hash'] ?? '') !== $prev) return false;
+            $expected = hash('sha256', $prev . '|' . $r['actor'] . '|' . $r['action'] . '|' . $r['detail'] . '|' . $r['created_at']);
+            if (!hash_equals($expected, (string)($r['hash'] ?? ''))) return false;
+            $prev = (string) $r['hash'];
+        }
+        return true;
     }
 }
