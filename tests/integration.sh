@@ -11,7 +11,9 @@ trap cleanup EXIT
 
 ok(){ if [ "$1" = 0 ]; then echo "  PASS $2"; PASS=$((PASS+1)); else echo "  FAIL $2"; FAIL=$((FAIL+1)); fi; }
 code(){ curl -s -o /tmp/panel-resp -w '%{http_code}' "$@"; }
+csrf(){ grep -E 'panel_csrf' "$JAR" 2>/dev/null | awk '{print $7}' | tail -1; }
 http(){ curl -s -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' \
+  -H "X-CSRF-Token: $(csrf)" \
   -X POST "$BASE/api.php?action=$1" --data-binary "$2"; }
 
 echo "== container and brokers =="
@@ -20,7 +22,7 @@ echo "== container and brokers =="
 [ "$(systemctl is-active vault-broker)" = active ]; ok $? "vault broker active"
 
 echo "== web / auth =="
-C=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/"); [ "$C" = 200 ]; ok $? "index page 200"
+C=$(curl -s -b "$JAR" -c "$JAR" -o /dev/null -w '%{http_code}' "$BASE/"); [ "$C" = 200 ]; ok $? "index page 200"
 USER=$(grep -E '^PANEL_ADMIN_USER=' "$DIR/panel.env" | cut -d= -f2-)
 PASSWD=$(grep -E '^PANEL_ADMIN_PASSWORD=' "$DIR/panel.env" | cut -d= -f2-)
 C=$(curl -s -o /tmp/panel-resp -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' \
@@ -76,7 +78,7 @@ for i in $(seq 1 30); do
   sleep 1
 done
 [ "$C" = 200 ]; ok $? "panel answers after restart"
-curl -s -b "$JAR" -H 'Content-Type: application/json' -X POST "$BASE/api.php?action=bootstrap" --data-binary '{}' > /tmp/panel-resp
+curl -s -b "$JAR" -H 'Content-Type: application/json' -H "X-CSRF-Token: $(csrf)" -X POST "$BASE/api.php?action=bootstrap" --data-binary '{}' > /tmp/panel-resp
 python3 -c 'import json;assert json.load(open("/tmp/panel-resp"))["ok"]' 2>/dev/null
 ok $? "session survives restart"
 
