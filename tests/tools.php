@@ -25,7 +25,9 @@ echo "== HMAC gate ==\n";
 $key = trim((string)@file_get_contents('/run/secrets/hostctl.key'));
 $payload = ['op'=>'action','action'=>'fix_service','args'=>(object)['service'=>'x'],
             'ts'=>(string)time(),'token'=>'bad-token','requestor'=>'test'];
-$sock = stream_socket_client('unix:///run/panel-host.sock', $e, $m, 5);
+$hostSocket = getenv('HOSTCTL_SOCKET') ?: '/run/panel-sockets/hostctl.sock';
+$sock = stream_socket_client('unix://' . $hostSocket, $e, $m, 5);
+if (!$sock) { ok(false, 'host socket reachable'); exit(1); }
 fwrite($sock, json_encode($payload) . "\n");
 $reply = json_decode(fgets($sock) ?: '{}', true); fclose($sock);
 ok(empty($reply['ok']) && str_contains((string)($reply['error'] ?? ''), 'bad authorization'),
@@ -34,7 +36,9 @@ ok(empty($reply['ok']) && str_contains((string)($reply['error'] ?? ''), 'bad aut
 $ts = (string)(time() - 900);
 $msg = 'fix_service|' . json_encode((object)['service'=>'x']) . '|' . $ts;
 $payload['ts'] = $ts; $payload['token'] = hash_hmac('sha256', $msg, $key);
-$sock = stream_socket_client('unix:///run/panel-host.sock', $e, $m, 5);
+$hostSocket = getenv('HOSTCTL_SOCKET') ?: '/run/panel-sockets/hostctl.sock';
+$sock = stream_socket_client('unix://' . $hostSocket, $e, $m, 5);
+if (!$sock) { ok(false, 'host socket reachable'); exit(1); }
 fwrite($sock, json_encode($payload) . "\n");
 $reply = json_decode(fgets($sock) ?: '{}', true); fclose($sock);
 ok(empty($reply['ok']) && str_contains((string)($reply['error'] ?? ''), 'stale'),

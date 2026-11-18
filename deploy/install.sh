@@ -53,19 +53,23 @@ PANEL_ADMIN_USER=admin
 PANEL_ADMIN_PASSWORD=$ADMIN_PASS
 PANEL_LLM_URL=http://host.docker.internal:4097/v1/chat/completions
 PANEL_LLM_KEY=$TOKEN
-VAULT_SOCKET=/run/vault-broker.sock
-HOSTCTL_SOCKET=/run/panel-host.sock
+VAULT_SOCKET=/run/panel-sockets/vault.sock
+HOSTCTL_SOCKET=/run/panel-sockets/hostctl.sock
 PANEL_HOST_KEY=/run/secrets/hostctl.key
 EOF
   chmod 600 "$DIR/panel.env"
   say "created panel.env (owner password is stored only there)"
 else
+  sed -i 's#^VAULT_SOCKET=.*#VAULT_SOCKET=/run/panel-sockets/vault.sock#' "$DIR/panel.env"
+  sed -i 's#^HOSTCTL_SOCKET=.*#HOSTCTL_SOCKET=/run/panel-sockets/hostctl.sock#' "$DIR/panel.env"
   chmod 600 "$DIR/panel.env"
 fi
 
 # 4. root-owned host-control broker
-chmod 755 "$DIR/hostctl/hostctl.py"
+mkdir -p /opt/panel-sockets && chmod 755 /opt/panel-sockets
+chmod 755 "$DIR/hostctl/hostctl.py" "$DIR/hostctl/socket_relay.py"
 install -o root -g root -m 0644 "$DIR/hostctl/panel-hostctl.service" /etc/systemd/system/panel-hostctl.service
+install -o root -g root -m 0644 "$DIR/hostctl/panel-socket-relay.service" /etc/systemd/system/panel-socket-relay.service
 echo '{}' > "$SECRETS/critical-packages.json"
 systemctl daemon-reload
 systemctl enable --now panel-hostctl >/dev/null
@@ -75,7 +79,14 @@ for i in $(seq 1 20); do
   sleep 0.5
 done
 [ -S /run/panel-host.sock ] || { echo "host broker socket did not appear" >&2; exit 1; }
+systemctl enable --now panel-socket-relay >/dev/null
+systemctl restart panel-socket-relay >/dev/null
+for i in $(seq 1 20); do
+  [ -S /opt/panel-sockets/hostctl.sock ] && [ -S /opt/panel-sockets/vault.sock ] && break
+  sleep 0.5
+done
 say "host-control broker: $(systemctl is-active panel-hostctl)"
+say "socket relay: $(systemctl is-active panel-socket-relay)"
 
 # 5. single container - force recreate so the socket mounts are the real files
 cd "$DIR"

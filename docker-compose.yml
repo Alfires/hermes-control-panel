@@ -11,10 +11,10 @@ services:
       - "9120:8080"
     volumes:
       - ./data:/var/lib/panel
-      # Root-owned brokers. The container's PHP workers run as uid 1000 (deck),
-      # which is the only group allowed to talk to either socket.
-      - /run/vault-broker.sock:/run/vault-broker.sock
-      - /run/panel-host.sock:/run/panel-host.sock
+      # A directory is mounted (not the socket files): the relays recreate
+      # their sockets on broker restart and the container sees the new inode.
+      # PHP workers run as uid 1000 (deck), the only group allowed to connect.
+      - /opt/panel-sockets:/run/panel-sockets
       # Root-only HMAC key; entrypoint copies it to a 0400 uid-1000 file.
       - /opt/panel-secrets/hostctl.key:/run/hostctl-src/hostctl.key:ro
     healthcheck:

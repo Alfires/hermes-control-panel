@@ -1,0 +1,17 @@
+[Unit]
+Description=Stable panel broker sockets for the Docker container
+After=panel-hostctl.service vault-broker.service
+Wants=panel-hostctl.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/hermes-control-panel/hostctl/socket_relay.py
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
