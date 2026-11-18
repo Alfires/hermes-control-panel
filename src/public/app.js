@@ -23,15 +23,20 @@ let chatAgent = null, chatSession = null;
 let customStyle = null;
 
 const NAV = [
-  {id:'overview', ico:'◈', label:'Overview'},
-  {id:'sessions', ico:'▤', label:'Sessions'},
-  {id:'agents',    ico:'⬡', label:'Agents'},
-  {id:'approvals', ico:'✓', label:'Approvals'},
-  {id:'security', ico:'⚠', label:'Security'},
-  {id:'vault',     ico:'⚿', label:'Vault'},
-  {id:'settings', ico:'⚙', label:'Settings'},
-  {id:'audit',     ico:'≡', label:'Audit'},
-  {id:'setup',     ico:'⬇', label:'Setup'},
+  {id:'overview', ico:'◈', label:'Overview', group:'Core'},
+  {id:'sessions', ico:'▤', label:'Sessions', group:'Core'},
+  {id:'agents',    ico:'⬡', label:'Agents', group:'Core'},
+  {id:'approvals', ico:'✓', label:'Approvals', group:'Core'},
+  {id:'security', ico:'⚠', label:'Security', group:'Core'},
+  {id:'vault',     ico:'⚿', label:'Vault', group:'Core'},
+  {id:'search',    ico:'⌕', label:'Search', group:'Core'},
+  {id:'themes',    ico:'◐', label:'Themes', group:'Workspace'},
+  {id:'voice',     ico:'◉', label:'Voice', group:'Workspace'},
+  {id:'self-test', ico:'✦', label:'Self test', group:'Workspace'},
+  {id:'hermes',    ico:'▦', label:'Hermes', group:'Hermes'},
+  {id:'settings', ico:'⚙', label:'Settings', group:'Core'},
+  {id:'audit',     ico:'≡', label:'Audit', group:'Core'},
+  {id:'setup',     ico:'⬇', label:'Setup', group:'Core'},
 ];
 const TITLES = {
   overview:['Overview','All agents, sessions and live activity'],
@@ -40,15 +45,34 @@ const TITLES = {
   approvals:['Approvals','One-time escalations and recorded actions'],
   security:['Security','Daily exploit watch and proposed fixes'],
   vault:['Vault','Names and policies only — values never reach an agent'],
-  settings:['Settings','Layout the agents can edit, and owner preferences'],
+  search:['Search','One search across pages, agents, sessions, findings and Hermes'],
+  themes:['Themes','Light, dark, rounded and square presets — switch live'],
+  voice:['Voice','Local speech-to-text. Nothing leaves the Deck.'],
+  'self-test':['Self test','Daily AI check of every page in this panel'],
+  hermes:['Hermes','Every Hermes capability, represented through safe data sources'],
+  settings:['Settings','Layout the agents can propose, and owner preferences'],
   audit:['Audit','Every decision and privileged call'],
   setup:['Setup','Endpoints, brokers and operator commands'],
 };
+const HERMES_AREAS = [
+  ['hermes-status','Status','hermes.status'], ['hermes-sessions','Sessions','hermes.sessions.list'],
+  ['hermes-models','Models','hermes.models.options'], ['hermes-tools','Tools','hermes.tools.toolsets'],
+  ['hermes-skills','Skills','hermes.skills.list'], ['hermes-cron','Cron','hermes.cron.jobs'],
+  ['hermes-analytics','Analytics','hermes.analytics'], ['hermes-themes','Themes','hermes.themes'],
+  ['hermes-config','Config schema','hermes.config.schema'], ['hermes-env','Environment names','hermes.env.names'],
+  ['hermes-messaging','Messaging','hermes.messaging.platforms'], ['hermes-webhooks','Webhooks','hermes.webhooks'],
+  ['hermes-capabilities','Capabilities','hermes.gateway.capabilities'], ['hermes-logs','Logs','hermes.logs'],
+  ['hermes-files','Files','hermes.files.meta'], ['hermes-git','Git','hermes.git.status'],
+  ['hermes-profiles','Profiles','hermes.profiles'], ['hermes-plugins','Plugins','hermes.plugins'],
+  ['hermes-mcp','MCP','hermes.mcp'],
+];
+
+const csrfToken = () => (document.cookie.match(/(?:^|;\s*)panel_csrf=([^;]+)/) || [])[1] || '';
 
 async function api(action, data = {}) {
   const r = await fetch('/api.php?action=' + encodeURIComponent(action), {
     method:'POST', credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},
+    headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken()},
     body: JSON.stringify(data),
   });
   try { return await r.json(); } catch (e) { return {ok:false, error:'bad JSON from server'}; }
@@ -59,12 +83,21 @@ function toast(msg) {
 }
 function applyLayout() {
   const l = L();
-  $('#brand-name').textContent = (l.title || 'HERMES').toUpperCase();
-  const accent = l.accent && l.accent.toLowerCase() !== '#4dd0e1' ? l.accent : '#ed8d30';
-  document.documentElement.style.setProperty('--accent', accent);
-  document.documentElement.style.setProperty('--accent-dark', accent === '#ed8d30' ? '#c96f14' : accent);
-  if (!customStyle) { customStyle = document.createElement('style'); document.head.appendChild(customStyle); }
-  customStyle.textContent = l.custom_css || '';
+  $('#brand-name').textContent = ((S.config && S.config.meta && S.config.meta.title) || l.title || 'HERMES').toUpperCase();
+  const theme = S.config && S.config.theme;
+  if (theme && theme.preset) {
+    const presets = window.HCP_THEME_PRESETS || (S.theme_presets || {});
+    const p = presets[theme.preset];
+    document.documentElement.dataset.theme = theme.mode || (p && p.mode) || 'light';
+    document.documentElement.dataset.radius = theme.radius || (p && p.radius) || 'rounded';
+    const tokens = (p && p.tokens) || {};
+    for (const [key, value] of Object.entries(theme.tokens || tokens)) {
+      if (/^--[a-z0-9-]+$/.test(key) && /^[#0-9a-zA-Z. ()\-,]+$/.test(String(value))) {
+        document.documentElement.style.setProperty(key, value);
+      }
+    }
+  }
+  // Raw custom_css is intentionally ignored: AI edits only validated tokens.
 }
 function sortedAgents() {
   const l = L();
@@ -92,9 +125,19 @@ function showApp() { $('#login').classList.add('hidden'); $('#app').classList.re
 
 function renderNav() {
   const counts = {approvals: pendingCount(), security: findingCount()};
-  $('#nav').innerHTML = NAV.map(n => `
-    <button class="nav-item ${view===n.id?'active':''}" data-view="${n.id}">
-      <span class="ico">${n.ico}</span><span>${n.label}</span>
+  let items = NAV;
+  const configured = (S.config && S.config.pages) || [];
+  if (configured.length) {
+    items = configured.map(p => ({
+      id: p.id, ico: (p.nav && p.nav.icon) || '▦', label: (p.nav && p.nav.label) || p.id,
+      group: (p.nav && p.nav.group) || 'Core',
+    }));
+    const known = new Set(items.map(i => i.id));
+    for (const n of NAV) if (!known.has(n.id) && ['search','themes','voice','self-test','hermes'].includes(n.id)) items.push(n);
+  }
+  $('#nav').innerHTML = items.map(n => `
+    <button class="nav-item ${view===n.id?'active':''}" data-view="${esc(n.id)}">
+      <span class="ico">${esc(n.ico)}</span><span>${esc(n.label)}</span>
       ${counts[n.id] ? `<span class="nav-badge">${counts[n.id]}</span>` : ''}
     </button>`).join('');
   $$('.nav-item').forEach(b => b.onclick = () => { view = b.dataset.view; renderNav(); render(); });
@@ -114,9 +157,14 @@ function render() {
   $('#view-title').textContent = title; $('#view-sub').textContent = sub;
   const fn = {overview:renderOverview, sessions:renderSessions, agents:renderAgents,
     approvals:renderApprovals, security:renderSecurity, vault:renderVault,
-    settings:renderSettings, audit:renderAudit, setup:renderSetup}[view];
-  $('#content').innerHTML = fn ? fn() : '';
+    settings:renderSettings, audit:renderAudit, setup:renderSetup,
+    search:renderSearch, themes:renderThemes, voice:renderVoice,
+    'self-test':renderSelfTest, hermes:renderHermes}[view];
+  $('#content').innerHTML = fn ? fn() : renderHermes();
   bindContent();
+  if (view === 'voice') bindVoice();
+  if (view === 'self-test') loadSelfTest();
+  if (view === 'search') bindSearch();
 }
 
 /* ---------------------------------------------------------------- overview */
@@ -264,23 +312,61 @@ function renderVault() {
 
 /* --------------------------------------------------------------- settings */
 function renderSettings() {
-  const l = L();
-  const order = (l.card_order||[]).join(', ');
+  const c = S.config || {};
   return `<div class="grid two">
-    <div class="card"><h3>Layout (agent-editable)</h3><p class="muted">The Web Interface agent can change these keys with your approval. Owner saves here.</p>
-      <textarea id="layout-json" rows="16">${esc(JSON.stringify(l, null, 2))}</textarea>
-      <div class="row" style="margin-top:10px"><button class="btn primary small" data-save-layout>Save layout</button>
-      <span class="muted" style="font-size:11px">keys: title, accent, default_model, card_order, welcome, custom_css</span></div></div>
-    <div class="card"><h3>Current values</h3>
-      <dl class="mono" style="font-size:11px">
-        <dt>title</dt><dd>${esc(l.title||'HERMES')}</dd>
-        <dt>accent</dt><dd>${esc(l.accent||'#4dd0e1 (default)')}</dd>
-        <dt>default_model</dt><dd>${esc(l.default_model||'big-pickle (default)')}</dd>
-        <dt>card_order</dt><dd>${esc(order||'agent ids')}</dd>
-        <dt>custom_css</dt><dd>${l.custom_css?(l.custom_css.length+' characters'):'none'}</dd>
-      </dl>
-      <p class="muted" style="font-size:11px;margin-top:14px">Agents edit one key at a time via <span class="mono">webui_edit</span>; every change is recorded in Approvals and Audit.</p>
-    </div></div>`;
+    <div class="card"><h3>AI-editable config</h3>
+      <p class="muted">Agents propose JSON patches. Nothing changes until you approve. Raw CSS and HTML are rejected by the schema.</p>
+      <label>Path <input id="cfg-path" value="/meta/title" class="mono"></label>
+      <label style="margin-top:8px">New value (JSON or plain string)
+        <input id="cfg-value" value="${esc(c.meta?.title || 'Hermes Control Deck')}"></label>
+      <div class="row" style="margin-top:12px"><button class="btn primary small" id="cfg-propose">Propose change</button>
+        <button class="btn small" id="cfg-history">Refresh history</button></div>
+      <pre id="cfg-result" class="hidden" style="font-size:11px"></pre>
+    </div>
+    <div class="card"><h3>Active configuration</h3>
+      <pre style="font-size:11px;max-height:260px;overflow:auto">${esc(JSON.stringify({
+        revision:c.revision, theme:c.theme, feature_flags:c.feature_flags, prompts:c.prompts, schedule:c.schedule,
+      }, null, 2))}</pre>
+      <p class="muted" style="font-size:11px">Owners can roll back any earlier revision from the history below.</p>
+    </div></div>
+    <div class="card" style="margin-top:16px"><h3>Revision history</h3><div id="cfg-history-body">Loading…</div></div>`;
+}
+async function loadConfigHistory() {
+  const box = $('#cfg-history-body'); if (!box) return;
+  const r = await api('ui.config.history');
+  box.innerHTML = (r.history || []).slice().reverse().map(h => `<div class="selftest-row">
+    <span>rev ${esc(h.revision)} · ${esc(h.state)} · ${esc(h.author)} · ${fmt(h.created_at)}</span>
+    <span>${h.state === 'active' ? 'active' : ''}
+      ${h.state === 'draft' && h.proposal_id ? `<button class="btn small primary" data-approve="${h.proposal_id}">Approve</button> ` : ''}
+      ${h.state !== 'active' ? `<button class="btn small" data-rollback="${h.revision}">Roll back</button>` : ''}</span></div>`).join('');
+  $$('[data-rollback]').forEach(b => b.onclick = async () => {
+    const out = await api('ui.config.rollback', {revision:+b.dataset.rollback});
+    toast(out.ok ? 'Rolled back' : (out.error || 'Failed')); await bootstrap();
+  });
+  $$('[data-approve]').forEach(b => b.onclick = async () => {
+    const out = await api('ui.config.approve', {id:+b.dataset.approve});
+    toast(out.ok ? 'Applied' : (out.error || 'Failed')); await bootstrap();
+  });
+}
+function bindConfig() {
+  if (view !== 'settings') return;
+  loadConfigHistory();
+  const propose = $('#cfg-propose'); if (!propose) return;
+  propose.onclick = async () => {
+    const path = $('#cfg-path').value.trim();
+    const raw = $('#cfg-value').value;
+    let value = raw;
+    try { value = JSON.parse(raw); } catch (e) { /* plain string is fine */ }
+    const r = await api('ui.config.propose', {patches:[{op:'replace', path, value}]});
+    const box = $('#cfg-result'); box.classList.remove('hidden');
+    if (!r.ok) { box.textContent = (r.errors || [r.error || 'Rejected']).join('\n'); return; }
+    box.textContent = `Proposed revision ${r.revision} (${r.hash.slice(0,12)}…)\n` + (r.diff || []).join('\n');
+    toast('Proposal saved — approve it below');
+    await loadConfigHistory();
+  };
+  const hist = $('#cfg-history'); if (hist) hist.onclick = loadConfigHistory;
+  // Approve the newest pending draft revision from history when requested.
+  $$('#cfg-history-body [data-rollback]').forEach(() => {});
 }
 
 /* ------------------------------------------------------------------ audit */
@@ -294,18 +380,254 @@ function renderAudit() {
 
 /* ------------------------------------------------------------------ setup */
 function renderSetup() {
+  const reqs = (S.setup_requirements || []);
   return `<div class="grid two">
-    <div class="card"><h3>Endpoints</h3><table>
-      <tr><td>Panel</td><td class="mono">this page</td></tr>
-      <tr><td>Vault broker</td><td class="mono">${S.vault?.available?'/run/vault-broker.sock online':'offline'}</td></tr>
-      <tr><td>Host control</td><td class="mono">${S.host?.available?'/run/panel-host.sock online':'offline'}</td></tr>
-      <tr><td>Model source</td><td class="mono">local OpenCode API (host.docker.internal:4097)</td></tr>
-    </table></div>
-    <div class="card"><h3>Operator commands (on the Deck)</h3><pre>sudo systemctl status panel-hostctl
-sudo /opt/hermes/hermesctl.sh status
-sudo /home/deck/vault/vault.py list
-docker compose -f /opt/hermes-control-panel/docker-compose.yml ps</pre></div>
-  </div>`;
+    <div class="card"><h3>Environment</h3><table>
+      <tr><td>Panel</td><td class="mono">two-container compose</td></tr>
+      <tr><td>Hermes gateway</td><td class="mono">${S.hermes?.available?'hermes:8642 online':'unreachable'}</td></tr>
+      <tr><td>Vault broker</td><td class="mono">${S.vault?.available?'online':'offline'}</td></tr>
+      <tr><td>Host control</td><td class="mono">${S.host?.available?'online':'offline'}</td></tr>
+      <tr><td>Local STT</td><td class="mono">${S.stt?.available?'ready':'not installed'}</td></tr>
+      <tr><td>Setup lock</td><td class="mono">${S.setup_complete?'complete':'pending'}</td></tr>
+    </table>
+    <div class="row" style="margin-top:12px"><button class="btn small" id="setup-check">Re-run checks</button></div></div>
+    <div class="card"><h3>Requirements</h3>
+      ${reqs.length ? reqs.map(r => `<div class="req ${r.ok?'ok':(r.level==='fail'?'fail':'warn')}">
+        <span class="mark">${r.ok?'✓':(r.level==='fail'?'✕':'!')}</span><span>${esc(r.label)}</span></div>`).join('')
+        : '<p class="muted">Open the first-run wizard to see requirements.</p>'}
+      <p class="muted" style="font-size:11px;margin-top:12px">No systemd units are added. The panel and Hermes run in one Docker Compose file.</p>
+    </div></div>`;
+}
+
+/* ------------------------------------------------------------ new views */
+
+function renderSearch() {
+  return `<div class="view-tabs"><button class="view-tab active" data-kind="">Everything</button>
+    <button class="view-tab" data-kind="page">Pages</button><button class="view-tab" data-kind="agent">Agents</button>
+    <button class="view-tab" data-kind="session">Sessions</button><button class="view-tab" data-kind="finding">Findings</button>
+    <button class="view-tab" data-kind="hermes">Hermes</button></div>
+    <div class="card" style="padding:18px"><div class="row" style="margin-bottom:14px">
+      <input id="search-q" placeholder="What are you looking for?" style="max-width:420px">
+      <button class="btn primary" id="search-go">Search</button></div>
+      <div id="search-results" class="search-results"><p class="muted">Type a word or phrase and press Enter.</p></div></div>`;
+}
+function bindSearch() {
+  const go = async () => {
+    const q = $('#search-q')?.value.trim(); if (!q) return;
+    const kind = $('.view-tab.active')?.dataset.kind || '';
+    const r = await api('search.query', {q, kinds: kind ? [kind] : []});
+    $('#search-results').innerHTML = (r.results || []).length
+      ? r.results.map(x => `<div class="search-result" data-goto="${x.kind === 'page' ? esc(x.ref_id) : 'search'}">
+          <div class="kind">${esc(x.kind)}</div><strong>${esc(x.title)}</strong>
+          <div class="snippet">${esc(x.snippet)}</div></div>`).join('')
+      : '<p class="muted">No matches yet.</p>';
+    $$('#search-results [data-goto]').forEach(el => el.onclick = () => { view = el.dataset.goto; renderNav(); render(); });
+  };
+  const btn = $('#search-go'); if (btn) btn.onclick = go;
+  const input = $('#search-q');
+  if (input) input.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  $$('.view-tab').forEach(b => b.onclick = () => {
+    $$('.view-tab').forEach(x => x.classList.remove('active')); b.classList.add('active');
+    if ($('#search-q')?.value.trim()) go();
+  });
+}
+
+function renderThemes() {
+  const presets = S.theme_presets || {};
+  const active = (S.config && S.config.theme && S.config.theme.preset) || '';
+  return `<p class="muted" style="margin-bottom:16px">Pick a preset. The change is proposed, validated, approved and applied atomically — then saved in config history.</p>
+    <div class="theme-grid">${Object.entries(presets).map(([id, p]) => {
+      const t = p.tokens || {};
+      const bg = t['--subtle'] || (p.mode === 'dark' ? '#101a26' : '#f5f7fa');
+      const surface = t['--surface'] || '#fff';
+      const accent = t['--accent'] || '#ec8621';
+      const ink = t['--ink'] || '#172b40';
+      return `<div class="theme-card ${id === active ? 'active' : ''}" data-preset="${esc(id)}">
+        <div class="theme-swatch" style="background:${bg}">
+          <span class="bubble" style="background:${surface};border:1px solid ${t['--line'] || '#ddd'}"></span>
+          <span class="bubble" style="background:${accent}"></span>
+          <span class="bubble" style="background:${t['--good'] || '#1a9670'}"></span>
+          <span class="bubble" style="background:${ink}"></span></div>
+        <div class="label"><span>${esc(p.label || id)}</span><span class="muted">${esc(p.mode)} · ${esc(p.radius)}</span></div></div>`;
+    }).join('')}</div>`;
+}
+function bindThemes() {
+  $$('.theme-card').forEach(el => el.onclick = async () => {
+    const preset = el.dataset.preset;
+    const r = await api('theme.set', {preset});
+    if (!r.ok) return toast(r.error || 'Theme change failed');
+    toast('Theme applied'); await bootstrap();
+  });
+}
+function bindContent() {
+  bindContentBase();
+  if (view === 'themes') bindThemes();
+  if (view === 'hermes') bindHermes();
+  if (view === 'self-test') bindSelfTest();
+  bindConfig();
+}
+
+function renderVoice() {
+  return `<div class="voice-wrap">
+    <div class="card" style="padding:22px;text-align:center">
+      <h2 style="margin-bottom:6px">Talk to your deck</h2>
+      <p class="muted" style="font-size:12px">Push to talk. Whisper.cpp runs locally inside the web container.</p>
+      <button class="mic-btn" id="mic-btn" title="Hold to talk">◉</button>
+      <div id="voice-state" class="muted" style="font-size:12px">Ready</div>
+      <div id="voice-engine" class="muted" style="font-size:11px;margin-top:8px"></div>
+    </div>
+    <div class="card" style="padding:22px">
+      <div class="row" style="justify-content:space-between"><h2>Transcript</h2>
+        <button class="btn small" id="voice-clear">Clear</button></div>
+      <div id="voice-text" class="transcript" style="margin:14px 0">Nothing transcribed yet.</div>
+      <div class="row"><button class="btn primary" id="voice-send">Send to Chat agent</button>
+        <span class="muted" style="font-size:11px">Audio is deleted immediately after transcription; transcripts are never logged.</span></div>
+    </div></div>`;
+}
+let mediaRecorder = null, audioChunks = [];
+async function bindVoice() {
+  const s = await api('stt.status');
+  const engine = $('#voice-engine');
+  if (engine) engine.textContent = s.available ? `Engine ready · ${(s.models || []).join(', ')}`
+    : 'Engine not installed — recording disabled. Add a whisper.cpp model to the webui image to enable.';
+  const btn = $('#mic-btn'); if (!btn) return;
+  const state = $('#voice-state'), out = $('#voice-text');
+  btn.disabled = !s.available;
+  const start = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return toast('Microphone unavailable in this browser');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      audioChunks = []; mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunks, {type: mediaRecorder.mimeType || 'audio/webm'});
+        const fd = new FormData(); fd.append('audio', blob, 'capture.webm');
+        if (state) state.textContent = 'Transcribing…';
+        const r = await fetch('/api.php?action=stt.transcribe', {
+          method:'POST', credentials:'same-origin', headers:{'X-CSRF-Token':csrfToken()}, body:fd,
+        }).then(x => x.json());
+        if (r.ok) { if (out) out.textContent = r.text || '(silence)'; toast(`Transcribed in ${r.duration}s`); }
+        else { if (state) state.textContent = r.error || 'Failed'; }
+      };
+      mediaRecorder.start(); btn.classList.add('recording');
+      if (state) state.textContent = 'Recording — release to transcribe';
+    } catch (e) { toast('Microphone permission denied'); }
+  };
+  const stop = () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); btn.classList.remove('recording'); } };
+  btn.onpointerdown = (e) => { e.preventDefault(); start(); };
+  btn.onpointerup = stop; btn.onpointerleave = stop;
+  $('#voice-clear').onclick = () => { out.textContent = 'Nothing transcribed yet.'; };
+  $('#voice-send').onclick = async () => {
+    const text = out.textContent.trim(); if (!text || text === 'Nothing transcribed yet.') return;
+    const agent = (S.agents || []).find(a => a.slug === 'chat');
+    if (!agent) return toast('Chat agent unavailable');
+    const r = await api('chat.send', {agent_id:agent.id, message:text});
+    if (r.ok) toast('Sent to Chat agent'); else toast(r.error || 'Send failed');
+  };
+}
+
+function renderSelfTest() {
+  return `<div class="card" style="padding:22px">
+    <div class="row" style="justify-content:space-between;margin-bottom:16px">
+      <div><h2>Daily web UI test</h2><p class="muted" style="font-size:12px">AI checks every page and data source, then reports in plain language. It never fixes anything by itself.</p></div>
+      <button class="btn primary" id="selftest-run">Run now</button></div>
+    <div id="selftest-report"><p class="muted">Loading last report…</p></div></div>`;
+}
+async function loadSelfTest() {
+  const r = await api('selftest.report');
+  const box = $('#selftest-report'); if (!box) return;
+  if (!r.run) { box.innerHTML = '<p class="muted">No run yet. Press “Run now”.</p>'; return; }
+  const d = r.run.detail || {};
+  const checks = d.checks || [];
+  box.innerHTML = `<p style="font-size:12px"><strong>Status:</strong> ${esc(r.run.status)} ·
+    <strong>When:</strong> ${fmt(r.run.created_at)} · <strong>Pages:</strong> ${esc(d.pages || 0)}</p>
+    <div style="max-height:420px;overflow:auto;margin-top:12px">${checks.map(c =>
+      `<div class="selftest-row"><span>${esc(c.name)}</span><span class="${c.ok?'ok':'bad'}">${c.ok?'PASS':'FAIL'}</span></div>`).join('')}</div>`;
+}
+function bindSelfTest() {
+  const b = $('#selftest-run'); if (b) b.onclick = async () => {
+    b.disabled = true; toast('Running self-test…');
+    const r = await api('selftest.run'); b.disabled = false;
+    if (r.ok) { toast(r.ok && r.failed?.length === 0 ? 'All checks passed' : 'Some checks failed'); await loadSelfTest(); }
+  };
+}
+function renderHermes() {
+  return `<div class="view-tabs"><button class="view-tab active" data-area="all">All areas</button>
+    ${HERMES_AREAS.map(a => `<button class="view-tab" data-area="${esc(a[0])}">${esc(a[1])}</button>`).join('')}</div>
+    <div id="hermes-body" class="hermes-grid"><p class="muted">Choose an area to load its safe data view.</p></div>`;
+}
+const HERMES_SOURCE_MAP = Object.fromEntries(HERMES_AREAS.map(a => [a[0], a[2]]));
+async function loadHermesArea(area) {
+  const box = $('#hermes-body'); if (!box) return;
+  if (area === 'all') {
+    box.innerHTML = HERMES_AREAS.map(([id, label, source]) => `
+      <div class="hermes-tile" data-source="${esc(source)}"><h3>${esc(label)}</h3>
+      <span class="meta">${esc(source)}</span><button class="btn small">Load</button></div>`).join('');
+    $$('#hermes-body [data-source]').forEach(el => el.onclick = () => {
+      view = 'hermes'; render(); setTimeout(() => loadHermesArea(el.dataset.source), 0);
+    });
+    return;
+  }
+  const source = HERMES_SOURCE_MAP[area] || area;
+  box.innerHTML = '<p class="muted">Loading…</p>';
+  const r = await api('hermes.source', {source});
+  if (!r.ok) { box.innerHTML = `<div class="card"><p>${esc(r.error || 'Unavailable')}</p>
+    <button class="btn" onclick="document.querySelector('#menu-btn').click()">Open full menu</button></div>`; return; }
+  const rows = Array.isArray(r.data) ? r.data : [r.data];
+  box.innerHTML = `<div class="card" style="grid-column:1/-1;padding:18px"><div class="row" style="justify-content:space-between">
+      <h3>${esc(area)} ${r.cached ? '<span class="muted" style="font-size:10px">(cached)</span>' : ''}</h3>
+      <button class="btn small" onclick="location.reload()">Refresh</button></div>
+      <div style="overflow:auto;margin-top:12px">${rows.map(row => `<pre style="font-size:11px;white-space:pre-wrap">${esc(JSON.stringify(row, null, 2))}</pre>`).join('')}</div></div>`;
+}
+function bindHermes() {
+  $$('.view-tab[data-area]').forEach(b => b.onclick = async () => {
+    $$('.view-tab').forEach(x => x.classList.remove('active')); b.classList.add('active');
+    await loadHermesArea(b.dataset.area);
+  });
+  if (view === 'hermes') loadHermesArea('all');
+}
+
+/* ------------------------------------------------------------ first run */
+
+function renderSetupScreen(st) {
+  const steps = st.steps || [];
+  const reqs = st.requirements || [];
+  return `<div class="setup-stage">
+    <div class="row" style="justify-content:space-between"><strong style="letter-spacing:.14em;font-size:12px">HERMES CONTROL DECK</strong>
+      <span class="muted" style="font-size:11px">First launch · ${steps.filter(s=>s.done).length}/${steps.length} complete</span></div>
+    <div class="setup-steps">${steps.map(s => `<div class="setup-step ${s.done?'done':''}" title="${esc(s.title)}"></div>`).join('')}</div>
+    <div class="setup-card animate__animated animate__fadeInUp">
+      <h1 style="font-size:30px">Your AI team, one deck.</h1>
+      <p class="muted">A few checks, then everything is yours to personalise. Nothing here sends data off the Deck.</p>
+      <h3>Requirements</h3>
+      ${reqs.map(r => `<div class="req ${r.ok?'ok':(r.level==='fail'?'fail':'warn')}">
+        <span class="mark">${r.ok?'✓':(r.level==='fail'?'✕':'!')}</span>
+        <span>${esc(r.label)}${r.detail?` — <span class="muted">${esc(r.detail)}</span>`:''}</span></div>`).join('')}
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="setup-finish" ${reqs.some(r=>!r.ok&&r.level==='fail')?'disabled':''}>Finish setup</button>
+        <span class="muted" style="font-size:11px">Warnings are fine — you can enable those features later.</span></div>
+    </div></div>
+    <div class="setup-chat"><div class="animate__animated animate__fadeIn">
+      <div class="pill on">setup assistant</div>
+      <h2 style="margin:14px 0 8px">Hi, owner.</h2>
+      <p class="muted" style="max-width:420px">I checked the Deck for you. Approve the requirements and I’ll open your control deck. You can rename me, change colours, or add pages any time — just ask in plain language.</p>
+      <p class="muted" style="font-size:11px;max-width:420px">Plain language is fine: “make it darker”, “show me what the deck is doing”, “check if anything bad happened overnight”.</p>
+    </div></div>`;
+}
+async function showSetupIfNeeded() {
+  const st = await api('setup.status');
+  if (!st.ok || st.complete) return false;
+  $('#setup-screen').innerHTML = renderSetupScreen(st);
+  $('#setup-screen').classList.remove('hidden');
+  $('#app').classList.add('hidden');
+  const finish = $('#setup-finish');
+  if (finish) finish.onclick = async () => {
+    const r = await api('setup.complete');
+    if (r.ok) { $('#setup-screen').classList.add('hidden'); toast('Setup complete'); await bootstrap(true); }
+    else toast(r.error || 'Could not complete setup');
+  };
+  return true;
 }
 
 /* ---------------------------------------------------------------- drawer */
@@ -434,7 +756,7 @@ async function runScan(btn) {
   if (r.ok) { toast('Scan complete — ' + (r.findings||[]).length + ' finding(s)'); await bootstrap(); }
   else toast(r.error||'scan failed');
 }
-function bindContent() {
+function bindContentBase() {
   $$('[data-chat]').forEach(b => b.onclick = () => openChat(+b.dataset.chat));
   $$('[data-edit]').forEach(b => b.onclick = () => agentModal((S.agents||[]).find(a=>a.id===+b.dataset.edit)));
   $$('[data-newsess]').forEach(b => b.onclick = () => openChat(+b.dataset.newsess));
@@ -479,11 +801,13 @@ function bindDrawer() {
   });
   $$('[data-ui-edit]').forEach(b => b.onclick = async () => {
     let value; try { value = JSON.parse($('#ui-value').value); } catch(e) { toast('Value must be valid JSON'); return; }
-    const webui = (S.agents||[]).find(a=>a.slug==='webui');
-    if (!webui) { toast('Web Interface agent not found'); return; }
-    // Record the edit through the owner API; the agent applies it on its next turn.
-    const r = await api('layout.save', {value, key:$('#ui-key').value});
-    toast(r.ok?'Queued — approve in Approvals':r.error); await bootstrap();
+    const paths = {title:'/meta/title', description:'/meta/description', accent:'/theme/tokens/--accent', mode:'/theme/mode'};
+    const path = paths[$('#ui-key').value];
+    if (!path) { toast('Use Settings for schema-validated config patches'); return; }
+    const r = await api('ui.config.propose', {patches:[{op:'replace', path, value}]});
+    toast(r.ok ? `Proposed revision ${r.revision} — approve in Settings`
+               : ((r.errors || [])[0] || r.error || 'Rejected'));
+    await bootstrap();
   });
   $$('[data-set-model]').forEach(b => b.onclick = async () => {
     const l = L();
@@ -503,6 +827,18 @@ $('#login-form').onsubmit = async e => {
 };
 $('#logout-btn').onclick = async () => { await api('logout'); showLogin(); };
 $('#refresh-btn').onclick = async () => { await bootstrap(); toast('Refreshed'); };
+$('#voice-btn').onclick = () => { view = 'voice'; renderNav(); render(); };
+$('#global-search').onkeydown = (e) => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim(); if (!q) return;
+  view = 'search'; renderNav(); render();
+  const input = $('#search-q'); if (input) { input.value = q; $('#search-go')?.click(); }
+};
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) {
+    e.preventDefault(); $('#global-search')?.focus();
+  }
+});
 $('#menu-btn').onclick = () => { $('#drawer').classList.remove('hidden'); $('#drawer-backdrop').classList.remove('hidden'); };
 $('#drawer-close').onclick = () => { $('#drawer').classList.add('hidden'); $('#drawer-backdrop').classList.add('hidden'); };
 $('#drawer-backdrop').onclick = () => { $('#drawer').classList.add('hidden'); $('#drawer-backdrop').classList.add('hidden'); };
@@ -527,8 +863,13 @@ $('#chat-input').onkeydown = e => {
 
 (async () => {
   const me = await api('me');
-  if (me.authenticated) await bootstrap(true); else showLogin();
+  if (me.authenticated) {
+    const inSetup = await showSetupIfNeeded();
+    if (!inSetup) await bootstrap(true);
+  } else showLogin();
   setInterval(async () => {
-    if ($('#chat').classList.contains('hidden') && $('#drawer').classList.contains('hidden')) await bootstrap();
+    if ($('#setup-screen').classList.contains('hidden')
+        && $('#chat').classList.contains('hidden') && $('#drawer').classList.contains('hidden')
+        && !$('#app').classList.contains('hidden')) await bootstrap();
   }, 10000);
 })();

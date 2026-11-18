@@ -212,3 +212,122 @@ pre{white-space:pre-wrap; word-break:break-word; background:var(--panel2); borde
   .hero{padding:24px}
   .hero h1{font-size:30px}
 }
+
+/* ============================================================
+   Theme system — measured Brezel tokens, light/dark, radius presets.
+   The server sets html[data-theme] and html[data-radius]. Utility
+   classes below are the committed Tailwind output (no CDN at runtime).
+   ============================================================ */
+:root{
+  --ink:#172b40; --ink-2:#4a5f75; --muted:#7a8ca0;
+  --line:#e6ebf1; --surface:#ffffff; --subtle:#f5f7fa;
+  --dash-accent:#ec8621; --dash-accent-soft:#fdf1e6;
+  --dash-good:#1a9670; --dash-good-soft:#e5f4ee;
+  --dash-bad:#c4413a;  --dash-bad-soft:#fbeceb;
+  --dash-info:#3f78d8; --dash-info-soft:#e9f0fc;
+  --dash-plum:#a8508a; --dash-plum-soft:#f6eaf2;
+  --chat-surface:#f6f7f9; --dash-radius:16px;
+  --dash-shadow:0 1px 2px rgba(23,43,64,.04), 0 8px 24px rgba(23,43,64,.08);
+  --bg:var(--subtle); --panel:var(--surface); --panel2:var(--subtle);
+  --text:var(--ink); --accent:var(--dash-accent); --accent-dark:#c56f12;
+  --accent-soft:var(--dash-accent-soft); --navy:var(--ink); --navy2:var(--ink-2);
+  --ok:var(--dash-good); --warn:#b97514; --bad:var(--dash-bad);
+  --radius:var(--dash-radius); --shadow:var(--dash-shadow);
+  --shadow-lg:0 22px 60px rgba(23,43,64,.16);
+}
+html[data-radius="square"]{ --dash-radius:0px; --radius:0px;
+  .nav-item,.card,.btn,.icon-btn,.pill,.modal-card,.chat-compose,.chat-context,
+  .hero,.kpi,.login-card,.input,.field{border-radius:0!important} }
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --ink:#e8eef5; --ink-2:#b7c7d6; --muted:#8ba0b4;
+  --line:#2b3d4f; --surface:#142130; --subtle:#101a26;
+  --dash-accent:#f29a3d; --dash-accent-soft:#3a2a18;
+  --dash-good:#57c9a0; --dash-good-soft:#16362c;
+  --dash-bad:#f08b83; --dash-bad-soft:#3a1e1c;
+  --dash-info:#7aa6f0; --dash-info-soft:#1b2a42;
+  --dash-plum:#d68cbe; --dash-plum-soft:#33233a;
+  --chat-surface:#101a26; --accent-dark:#f7b46c;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  .sidebar,.topbar,.card,.panel,.modal-card,.chat-context,.chat-compose,
+  .chat-compose textarea,.hero,.kpi,.table,.field,input,textarea,select,
+  .icon-btn,.btn,.pill,.drawer,.login-card,input:focus,textarea:focus,select:focus{
+    background:var(--surface); color:var(--ink); border-color:var(--line) }
+  .topbar{background:rgba(20,33,48,.9)}
+  .btn.primary{background:var(--dash-accent); color:#1a1206; border-color:var(--dash-accent)}
+  .login-wrap{background:radial-gradient(720px 420px at 20% 0%,#2a2118 0,transparent 70%),var(--bg)}
+  .nav-item.active{background:var(--dash-accent-soft); color:var(--dash-accent)}
+}
+html[data-theme="midnight"]{ color-scheme:dark;
+  --ink:#e6f7fa; --muted:#86a8b4; --line:#1d3a46; --surface:#0d2029; --subtle:#08171e;
+  --dash-accent:#4dd0e1; --dash-accent-soft:#123741; --dash-radius:12px }
+html[data-theme="ember"]{ color-scheme:light;
+  --ink:#2c1c12; --muted:#8a6d58; --line:#eadfd2; --surface:#fffaf3; --subtle:#faf1e6;
+  --dash-accent:#c2410c; --dash-accent-soft:#fbe8dc; --dash-radius:14px }
+html[data-theme="mono"]{ color-scheme:light;
+  --ink:#111827; --muted:#6b7280; --line:#d1d5db; --surface:#ffffff; --subtle:#f3f4f6;
+  --dash-accent:#374151; --dash-accent-soft:#e5e7eb; --dash-radius:0px }
+
+/* Search, view switcher, wizard, voice, theme gallery, Hermes pages */
+.searchbox{position:relative; display:flex; align-items:center; gap:7px}
+.searchbox input{width:240px; padding:8px 12px 8px 30px; border-radius:99px; font-size:12px}
+.searchbox .mag{position:absolute; left:11px; color:var(--muted); font-size:13px}
+.search-results{display:grid; gap:8px}
+.search-result{padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:var(--surface); cursor:pointer; transition:.15s}
+.search-result:hover{border-color:var(--dash-accent); transform:translateX(2px)}
+.search-result .kind{font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--dash-accent); font-weight:800}
+.search-result .snippet{font-size:12px; color:var(--muted); margin-top:3px}
+.view-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px}
+.view-tab{padding:7px 13px; border:1px solid var(--line); border-radius:99px; background:var(--surface);
+  cursor:pointer; font-size:12px; font-weight:700; color:var(--muted)}
+.view-tab.active{background:var(--dash-accent-soft); color:var(--dash-accent); border-color:var(--dash-accent)}
+.hermes-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px}
+.hermes-tile{padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--surface);
+  display:grid; gap:8px; box-shadow:var(--dash-shadow)}
+.hermes-tile h3{color:var(--ink)}
+.hermes-tile .meta{font-size:11px; color:var(--muted)}
+.theme-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px}
+.theme-card{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--surface);
+  cursor:pointer; transition:.18s}
+.theme-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg)}
+.theme-swatch{height:96px; padding:14px; display:flex; align-items:flex-end; gap:8px}
+.theme-swatch .bubble{width:34px; height:34px; border-radius:10px; box-shadow:var(--dash-shadow)}
+.theme-card .label{padding:11px 14px; font-size:12px; font-weight:800; color:var(--ink);
+  display:flex; justify-content:space-between}
+.theme-card.active{outline:3px solid var(--dash-accent); outline-offset:-3px}
+.voice-wrap{display:grid; grid-template-columns:minmax(280px,420px) 1fr; gap:22px}
+.mic-btn{width:112px; height:112px; border-radius:50%; border:4px solid var(--dash-accent);
+  background:var(--dash-accent-soft); color:var(--dash-accent); font-size:38px; cursor:pointer;
+  display:grid; place-items:center; margin:12px auto; transition:.2s; box-shadow:var(--dash-shadow)}
+.mic-btn.recording{background:var(--dash-bad); color:#fff; border-color:var(--dash-bad);
+  animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,65,58,.45)}70%{box-shadow:0 0 0 22px rgba(196,65,58,0)}100%{box-shadow:0 0 0 0 rgba(196,65,58,0)}}
+.transcript{background:var(--chat-surface); border:1px solid var(--line); border-radius:14px;
+  padding:16px; min-height:120px; font-size:14px; color:var(--ink)}
+.setup-shell{display:grid; grid-template-columns:minmax(320px,50vw) 1fr; min-height:100vh;
+  background:linear-gradient(160deg,#f8f4ec,#eef2f5 55%,#e5ebf1)}
+html[data-theme="dark"] .setup-shell{background:linear-gradient(160deg,#1e1a14,#101a26 55%,#0c1420)}
+.setup-stage{padding:54px 48px; overflow:auto}
+.setup-steps{display:flex; gap:6px; margin:18px 0 26px}
+.setup-step{flex:1; height:5px; border-radius:99px; background:var(--line)}
+.setup-step.done{background:var(--dash-accent)}
+.setup-card{background:var(--surface); border:1px solid var(--line); border-radius:18px;
+  padding:28px; box-shadow:var(--dash-shadow); display:grid; gap:16px; max-width:680px}
+.setup-chat{border-left:3px solid var(--dash-accent); background:var(--chat-surface); padding:40px}
+.req{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line);
+  border-radius:10px; font-size:12px; font-weight:600}
+.req .mark{width:20px; text-align:center; font-weight:900}
+.req.ok .mark{color:var(--dash-good)} .req.warn .mark{color:var(--warn)} .req.fail .mark{color:var(--dash-bad)}
+.selftest-row{display:flex; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--line); font-size:12px}
+.selftest-row .ok{color:var(--dash-good); font-weight:800}
+.selftest-row .bad{color:var(--dash-bad); font-weight:800}
+.diff-line{font:12px/1.6 ui-monospace,monospace; padding:2px 8px; border-radius:4px}
+.diff-line.add{background:var(--dash-good-soft); color:var(--dash-good)}
+.diff-line.del{background:var(--dash-bad-soft); color:var(--dash-bad)}
+.diff-line.mod{background:var(--dash-info-soft); color:var(--dash-info)}
+.animate-fade-in{animation:fadeIn .35s both}
+.animate-slide-in{animation:slideInRight .28s both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideInRight{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}

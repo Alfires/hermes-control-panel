@@ -6,6 +6,14 @@ require_once __DIR__ . '/../lib/rbac.php';
 require_once __DIR__ . '/../lib/engine.php';
 require_once __DIR__ . '/../lib/vault.php';
 require_once __DIR__ . '/../lib/hostctl.php';
+require_once __DIR__ . '/../lib/config.php';
+require_once __DIR__ . '/../lib/theme.php';
+require_once __DIR__ . '/../lib/hermes.php';
+require_once __DIR__ . '/../lib/search.php';
+require_once __DIR__ . '/../lib/stt.php';
+require_once __DIR__ . '/../lib/prompt.php';
+require_once __DIR__ . '/../lib/setup.php';
+require_once __DIR__ . '/../lib/scheduler.php';
 
 Auth::ensureOwner();
 
@@ -24,10 +32,26 @@ if (!in_array($action, ['login', 'me'], true) && !empty($_SERVER['HTTP_ORIGIN'])
     }
 }
 
+// Double-submit CSRF token for every state-changing/session action.
+if (!in_array($action, ['login', 'me'], true)) {
+    $csrfCookie = (string)($_COOKIE['panel_csrf'] ?? '');
+    $csrfHeader = (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if ($csrfCookie === '' || $csrfHeader === '' || !hash_equals($csrfCookie, $csrfHeader)) {
+        Util::json(['ok' => false, 'error' => 'invalid CSRF token'], 403);
+    }
+}
+
 switch ($action) {
     case 'login':
+        // Per-IP + per-user rate limit (10 attempts / 15 min).
+        $rateKey = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '?') . '|' . Util::str($b['username'] ?? '', 120));
+        $rateFile = sys_get_temp_dir() . '/hcp-login-' . $rateKey;
+        $attempts = is_file($rateFile) ? (int) file_get_contents($rateFile) : 0;
+        if ($attempts >= 10) Util::json(['ok' => false, 'error' => 'too many attempts; try again later'], 429);
+        @file_put_contents($rateFile, $attempts + 1);
         $token = Auth::login(Util::str($b['username'] ?? '', 120), (string)($b['password'] ?? ''));
         if (!$token) Util::json(['ok' => false, 'error' => 'invalid credentials'], 401);
+        @unlink($rateFile);
         Auth::setCookie($token);
         DB::audit('owner', 'login');
         Util::json(['ok' => true]);
@@ -57,8 +81,14 @@ switch ($action) {
                                    LEFT JOIN agents f ON f.id=m.from_agent
                                    JOIN agents t ON t.id=m.to_agent ORDER BY m.id DESC LIMIT 80'),
             'layout' => DB::one("SELECT value FROM layout WHERE key='layout'"),
+            'config' => ConfigGovernance::active(),
+            'theme_presets' => Theme::presets(),
+            'setup_complete' => Setup::complete(),
+            'setup_requirements' => Setup::requirements(),
+            'stt' => STT::status(),
             'vault' => ['available' => Vault::available(), 'secrets' => Vault::listSecrets()['secrets']],
             'host' => ['available' => HostCtl::available()],
+            'hermes' => ['available' => Hermes::available()],
         ]);
 
     case 'agent.create':
@@ -205,6 +235,128 @@ switch ($action) {
     case 'audit.list':
         Auth::require();
         Util::json(['ok' => true, 'audit' => DB::all('SELECT * FROM audit ORDER BY id DESC LIMIT 200')]);
+
+    /* ------------------------------------------------- framework / config */
+
+    case 'state.diff':
+        Auth::require();
+        Util::json(['ok' => true, 'version' => ConfigGovernance::currentRevision(),
+            'counts' => [
+                'agents' => (int) DB::one('SELECT COUNT(*) n FROM agents')['n'],
+                'sessions' => (int) DB::one('SELECT COUNT(*) n FROM agent_sessions')['n'],
+                'approvals' => (int) DB::one("SELECT COUNT(*) n FROM approvals WHERE status='pending'")['n'],
+                'findings' => (int) DB::one("SELECT COUNT(*) n FROM findings WHERE status='open'")['n'],
+            ]]);
+
+    case 'ui.config.propose':
+        Auth::require();
+        $patches = is_array($b['patches'] ?? null) ? $b['patches'] : [];
+        Util::json(ConfigGovernance::propose($patches, 'owner'));
+
+    case 'ui.config.approve':
+        Auth::require();
+        Util::json(ConfigGovernance::approve((int)($b['id'] ?? 0), 'owner'));
+
+    case 'ui.config.rollback':
+        Auth::require();
+        Util::json(ConfigGovernance::rollback((int)($b['revision'] ?? 0), 'owner'));
+
+    case 'ui.config.history':
+        Auth::require();
+        Util::json(['ok' => true, 'history' => ConfigGovernance::history()]);
+
+    case 'ui.config.diff':
+        Auth::require();
+        $a = ConfigGovernance::revision((int)($b['from'] ?? 0));
+        $c = ConfigGovernance::revision((int)($b['to'] ?? 0));
+        if (!$a || !$c) Util::json(['ok' => false, 'error' => 'unknown revision'], 404);
+        Util::json(['ok' => true, 'diff' => ConfigGovernance::diff(
+            json_decode($a['data'], true) ?: [], json_decode($c['data'], true) ?: [])]);
+
+    case 'theme.presets':
+        Auth::require();
+        Util::json(['ok' => true, 'presets' => Theme::presets()]);
+
+    case 'theme.set':
+        Auth::require();
+        $preset = (string)($b['preset'] ?? '');
+        $presets = Theme::presets();
+        if (!isset($presets[$preset])) Util::json(['ok' => false, 'error' => 'unknown preset'], 400);
+        $p = $presets[$preset];
+        $proposal = ConfigGovernance::propose([
+            ['op' => 'replace', 'path' => '/theme/preset', 'value' => $preset],
+            ['op' => 'replace', 'path' => '/theme/mode', 'value' => $p['mode']],
+            ['op' => 'replace', 'path' => '/theme/radius', 'value' => $p['radius']],
+            ['op' => 'replace', 'path' => '/theme/tokens', 'value' => $p['tokens']],
+        ], 'owner');
+        if (!$proposal['ok']) Util::json($proposal);
+        Util::json(ConfigGovernance::approve((int)$proposal['proposal_id'], 'owner'));
+
+    case 'search.query':
+        Auth::require();
+        Search::index();
+        Util::json(Search::query((string)($b['q'] ?? ''), is_array($b['kinds'] ?? null) ? $b['kinds'] : []));
+
+    case 'hermes.source':
+        Auth::require();
+        $source = (string)($b['source'] ?? ($_GET['source'] ?? ''));
+        $params = is_array($b['params'] ?? null) ? $b['params'] : [];
+        Util::json(Hermes::fetch($source, $params));
+
+    case 'hermes.deep_link':
+        Auth::require();
+        Util::json(['ok' => true, 'url' => Hermes::deepLink((string)($b['page'] ?? ''))]);
+
+    case 'stt.status':
+        Auth::require();
+        Util::json(STT::status());
+
+    case 'stt.transcribe':
+        Auth::require();
+        $file = $_FILES['audio'] ?? null;
+        if (!is_array($file) || ($file['error'] ?? 1) !== UPLOAD_ERR_OK || (int)($file['size'] ?? 0) > 10 * 1024 * 1024) {
+            Util::json(['ok' => false, 'error' => 'invalid audio upload'], 400);
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'hcp-audio-');
+        $result = [];
+        try {
+            if (!move_uploaded_file($file['tmp_name'], $tmp)) {
+                @copy($file['tmp_name'], $tmp);
+            }
+            $result = STT::transcribe($tmp, (string)($file['name'] ?? 'audio.webm'));
+        } finally {
+            @unlink($tmp);
+        }
+        Util::json($result);
+
+    case 'selftest.run':
+        Auth::require();
+        $report = Scheduler::runSelfTest(ConfigGovernance::active());
+        DB::run('INSERT INTO schedule_runs(job,status,detail,created_at) VALUES(?,?,?,?)',
+            ['webui.selftest', $report['ok'] ? 'pass' : 'fail', json_encode($report), time()]);
+        if (!$report['ok']) {
+            DB::run('INSERT INTO findings(source,severity,title,detail,status,created_at)
+                     VALUES(?,?,?,?,\'open\',?)',
+                ['webui.selftest', 'medium', 'Web UI self-test found broken views',
+                 count($report['failed']) . ' failing checks', time()]);
+        }
+        DB::audit('owner', 'selftest.run', $report['ok'] ? 'pass' : 'fail');
+        Util::json(['ok' => true] + $report);
+
+    case 'selftest.report':
+        Auth::require();
+        $run = DB::one("SELECT * FROM schedule_runs WHERE job='webui.selftest' ORDER BY id DESC LIMIT 1");
+        Util::json(['ok' => true, 'run' => $run ? [
+            'id' => (int)$run['id'], 'status' => $run['status'],
+            'detail' => json_decode($run['detail'], true), 'created_at' => (int)$run['created_at'],
+        ] : null]);
+
+    case 'setup.status':
+        Util::json(Setup::status());
+
+    case 'setup.complete':
+        Auth::require();
+        Util::json(Setup::finish('owner'));
 
     default:
         Util::json(['ok' => false, 'error' => 'unknown action'], 404);

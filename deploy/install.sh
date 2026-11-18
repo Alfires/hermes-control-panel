@@ -62,6 +62,9 @@ EOF
 else
   sed -i 's#^VAULT_SOCKET=.*#VAULT_SOCKET=/run/panel-sockets/vault.sock#' "$DIR/panel.env"
   sed -i 's#^HOSTCTL_SOCKET=.*#HOSTCTL_SOCKET=/run/panel-sockets/hostctl.sock#' "$DIR/panel.env"
+  # The production Hermes container is managed from /opt/hermes. Reach it over
+  # the host gateway rather than starting a duplicate service on the same ports.
+  grep -q '^HERMES_URL=' "$DIR/panel.env" || printf '\nHERMES_URL=http://host.docker.internal:8642\nHERMES_DASHBOARD_URL=http://host.docker.internal:9119\n' >> "$DIR/panel.env"
   chmod 600 "$DIR/panel.env"
 fi
 
@@ -90,8 +93,8 @@ say "socket relay: $(systemctl is-active panel-socket-relay)"
 
 # 5. single container - force recreate so the socket mounts are the real files
 cd "$DIR"
-docker compose down --remove-orphans >/dev/null 2>&1 || true
-docker compose up -d --build >/dev/null
+docker compose stop webui >/dev/null 2>&1 || true
+docker compose up -d --build webui >/dev/null
 say "container: $(docker inspect -f '{{.State.Status}}' hermes-panel)"
 
 say "panel:  http://192.168.2.157:9120  (also on the Tailscale IP)"

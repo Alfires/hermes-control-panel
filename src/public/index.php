@@ -1,16 +1,34 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../lib/auth.php';
+require_once __DIR__ . '/../lib/config.php';
+require_once __DIR__ . '/../lib/setup.php';
 Auth::ensureOwner();
+
+$config = ConfigGovernance::active();
+$theme = $config['theme'] ?? [];
+$preset = Theme::presets()[$theme['preset'] ?? ''] ?? Theme::presets()['brezel-light-rounded'];
+$mode = $theme['mode'] ?? $preset['mode'];
+$radius = $theme['radius'] ?? $preset['radius'];
+if (empty($_COOKIE['panel_csrf'])) {
+    setcookie('panel_csrf', bin2hex(random_bytes(24)), [
+        'expires' => time() + 12 * 3600, 'path' => '/', 'httponly' => false,
+        'samesite' => 'Lax', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    ]);
+}
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="<?= htmlspecialchars($config['meta']['locale'] ?? 'en') ?>"
+      data-theme="<?= htmlspecialchars($mode) ?>" data-radius="<?= htmlspecialchars($radius) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
-<title>Hermes Control Deck</title>
+<meta name="color-scheme" content="<?= $mode === 'dark' ? 'dark' : 'light' ?>">
+<title><?= htmlspecialchars($config['meta']['title'] ?? 'Hermes Control Deck') ?></title>
+<link rel="stylesheet" href="/assets/vendor/animate.min.css">
+<link rel="stylesheet" href="/tailwind.css">
 <link rel="stylesheet" href="/app.css">
+<script>window.HCP_CONFIG = <?= json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;</script>
 </head>
 <body>
 
@@ -26,6 +44,8 @@ Auth::ensureOwner();
   </form>
 </div>
 
+<div id="setup-screen" class="setup-shell hidden"></div>
+
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <div class="brand"><span class="brand-mark">⬡</span><span class="brand-name" id="brand-name">HERMES</span></div>
@@ -40,7 +60,9 @@ Auth::ensureOwner();
     <header class="topbar">
       <button class="icon-btn" id="menu-btn" title="Full menu">☰</button>
       <div class="title-wrap"><h1 id="view-title">Overview</h1><span class="subtitle" id="view-sub"></span></div>
+      <div class="searchbox"><span class="mag">⌕</span><input id="global-search" placeholder="Search everything…  (/)" autocomplete="off"></div>
       <div class="top-pills" id="pills"></div>
+      <button class="icon-btn" id="voice-btn" title="Voice input">◉</button>
       <button class="icon-btn" id="refresh-btn" title="Refresh">⟳</button>
     </header>
     <section id="content" class="content"></section>
@@ -67,7 +89,7 @@ Auth::ensureOwner();
       <aside class="chat-context hidden" id="chat-context-panel"></aside>
     </div>
     <form class="chat-compose" id="chat-form">
-      <textarea id="chat-input" rows="2" placeholder="Message this agent… (Enter to send, Shift+Enter for newline)"></textarea>
+      <textarea id="chat-input" rows="2" placeholder="Message this agent… (plain language is fine)"></textarea>
       <button class="btn primary" type="submit">Send</button>
     </form>
   </div>

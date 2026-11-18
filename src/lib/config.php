@@ -103,8 +103,11 @@ final class ConfigGovernance {
     }
 
     public static function history(): array {
-        return DB::all('SELECT id,revision,parent_revision,state,author,reason,hash,created_at,activated_at
-                        FROM ui_config_revisions ORDER BY revision ASC');
+        return DB::all('SELECT r.id,r.revision,r.parent_revision,r.state,r.author,r.reason,r.hash,
+                        r.created_at,r.activated_at,
+                        (SELECT p.id FROM ui_config_proposals p WHERE p.revision_id=r.id
+                         ORDER BY p.id DESC LIMIT 1) AS proposal_id
+                        FROM ui_config_revisions r ORDER BY r.revision ASC');
     }
 
     public static function proposal(int $id): ?array {

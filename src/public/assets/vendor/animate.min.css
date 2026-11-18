@@ -1,0 +1,12 @@
+/*! animate.css v4.1.1 (Hippocratic-2.1) — locally vendored subset, no CDN.
+    Classes used by the deck: animate__animated, fadeIn, fadeInUp, slideInRight, pulse. */
+.animate__animated{animation-duration:1s;animation-fill-mode:both}
+@keyframes animate__fadeIn{from{opacity:0}to{opacity:1}}
+.animate__fadeIn{animation-name:animate__fadeIn}
+@keyframes animate__fadeInUp{from{opacity:0;transform:translate3d(0,100%,0)}to{opacity:1;transform:none}}
+.animate__fadeInUp{animation-name:animate__fadeInUp}
+@keyframes animate__slideInRight{from{transform:translate3d(100%,0,0);visibility:visible}to{transform:none}}
+.animate__slideInRight{animation-name:animate__slideInRight}
+@keyframes animate__pulse{0%,100%{transform:none}50%{transform:scale3d(1.05,1.05,1.05)}}
+.animate__pulse{animation-name:animate__pulse;animation-timing-function:ease-in-out}
+@media (prefers-reduced-motion:reduce){.animate__animated{animation:none!important}}
