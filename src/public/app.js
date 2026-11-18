@@ -54,7 +54,9 @@ function toast(msg) {
 function applyLayout() {
   const l = L();
   $('#brand-name').textContent = (l.title || 'HERMES').toUpperCase();
-  if (l.accent) document.documentElement.style.setProperty('--accent', l.accent);
+  const accent = l.accent && l.accent.toLowerCase() !== '#4dd0e1' ? l.accent : '#ed8d30';
+  document.documentElement.style.setProperty('--accent', accent);
+  document.documentElement.style.setProperty('--accent-dark', accent === '#ed8d30' ? '#c96f14' : accent);
   if (!customStyle) { customStyle = document.createElement('style'); document.head.appendChild(customStyle); }
   customStyle.textContent = l.custom_css || '';
 }
@@ -115,6 +117,21 @@ function render() {
 function renderOverview() {
   const agents = sortedAgents();
   const openSessions = (S.sessions||[]).length;
+  const hero = `
+  <div class="hero">
+    <div class="hero-copy">
+      <div class="role">HERMES CONTROL DECK</div>
+      <h1>Your digital <em>team.</em></h1>
+      <p>Every agent, session and approval in one place. Set the direction — your agents work within your rules, on your own hardware.</p>
+      <div class="hero-actions">
+        <button class="btn primary" data-newchat>Open a chat</button>
+        <button class="btn" data-goto="approvals">Review approvals ${pendingCount() ? `(${pendingCount()})` : ''}</button>
+      </div>
+      <div class="trust"><span>✓ On-device model</span><span>✓ Owner-only access</span><span>✓ Every action audited</span></div>
+    </div>
+    <div class="hero-team">${agents.slice(0,3).map(a => `
+      <div class="mini"><b>${esc((a.name||'?')[0])}</b><span>${esc(a.name)}</span><span>${a.enabled?'live':'off'}</span></div>`).join('')}</div>
+  </div>`;
   const kpi = `
   <div class="kpi">
     <div class="card"><div class="num">${agents.length}</div><div class="lbl">Active agents</div></div>
@@ -143,7 +160,7 @@ function renderOverview() {
   }).join('');
   const acts = (S.audit||[]).slice(0,8).map(a =>
     `<tr><td>${ago(a.created_at)}</td><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="muted">${esc(a.detail||'')}</td></tr>`).join('');
-  return kpi + `<div class="section-head"><h2>Agent ranks</h2><span class="muted">ordered by layout</span></div>
+  return hero + kpi + `<div class="section-head"><h2>Agent ranks</h2><span class="muted">ordered by layout</span></div>
     <div class="grid cards">${cards || '<div class="empty">No agents yet.</div>'}</div>
     <div class="section-head" style="margin-top:22px"><h2>Recent activity</h2></div>
     <div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead><tbody>${acts}</tbody></table></div>`;
@@ -445,6 +462,7 @@ function bindContent() {
   if ($('[data-newchat]')) $('[data-newchat]').onclick = () => {
     const first = (S.agents||[]).find(a=>a.enabled); if (first) openChat(first.id);
   };
+  $$('[data-goto]').forEach(b => b.onclick = () => { view = b.dataset.goto; renderNav(); render(); });
 }
 function bindDrawer() {
   $$('#drawer-body [data-newagent]').forEach(b => b.onclick = () => agentModal());
