@@ -94,7 +94,10 @@ say "socket relay: $(systemctl is-active panel-socket-relay)"
 # 5. single container - force recreate so the socket mounts are the real files
 cd "$DIR"
 docker compose stop webui >/dev/null 2>&1 || true
-docker compose up -d --build webui >/dev/null
+# Production Hermes lives in /opt/hermes and already owns ports 8642/9119.
+# Start only the webui service; --no-deps prevents a duplicate gateway.
+docker rm -f hermes-agent >/dev/null 2>&1 || true
+docker compose up -d --build --no-deps webui >/dev/null
 say "container: $(docker inspect -f '{{.State.Status}}' hermes-panel)"
 
 say "panel:  http://192.168.2.157:9120  (also on the Tailscale IP)"
