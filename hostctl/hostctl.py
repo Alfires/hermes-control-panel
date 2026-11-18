@@ -449,9 +449,13 @@ class Server(socketserver.ThreadingUnixStreamServer):
 
     def __init__(self, path: str):
         try:
-            st = os.stat(path)
-            if stat.S_ISSOCK(st.st_mode):
+            st = os.lstat(path)
+            if stat.S_ISSOCK(st.st_mode) or stat.S_ISREG(st.st_mode):
                 os.unlink(path)
+            elif stat.S_ISDIR(st.st_mode):
+                # A stale placeholder directory must not block the socket.
+                import shutil
+                shutil.rmtree(path, ignore_errors=True)
         except FileNotFoundError:
             pass
         super().__init__(path, Handler)
