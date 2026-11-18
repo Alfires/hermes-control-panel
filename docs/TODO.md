@@ -14,15 +14,14 @@ change of scope leaves a version-history trail.
 
 ## Remaining build tasks
 
-- [ ] Run the opt-in live framework checks (`RUN_LIVE=1 php tests/suite.php`)
-      against the final deployed panel.
-- [ ] Re-run the daily self-test scheduler once on the Deck and confirm it
-      writes an audit record.
+- [ ] Nothing blocking. Re-run `php tests/suite.php` and the Deck integration
+      script after any future change.
 
 ## Completed (with evidence)
 
 - [x] Research reports and multipage implementation plan (`43cdb49`).
-- [x] 801-case framework test suite, zero failures, 20 opt-in live skips.
+- [x] 802-case framework test suite: 782 pass + 20 opt-in live skips locally;
+      802/802 with `RUN_LIVE=1` against the deployed Deck.
 - [x] Config governance, registries, renderer, themes, search, STT, setup, self-test.
 - [x] Deploy helper repaired for the existing production Hermes container.
 - [x] First-run wizard verified in browser: requirements, assistant copy and
@@ -32,13 +31,20 @@ change of scope leaves a version-history trail.
       Self test, Hermes, Settings, Audit, Setup.
 - [x] Theme presets verified: Brezel dark square applied (background
       `#101a26`, surface `#142130`) and restored to Brezel light rounded.
-- [x] Config governance verified end to end: propose rev 4 → approve →
-      rollback to active rev 3, with hash-chained history.
+- [x] Config governance verified end to end: propose → approve → rollback,
+      with append-only revision numbers and hash-chained history.
+- [x] Fixed revision-number reuse after rollback (`3b93acb`) and added a
+      regression case.
 - [x] Deck integration suite: 16/16 pass, including real secret-leakage probe
       (`***CENSORED***` marker) and restart-persistence check.
+- [x] Daily scheduler verified end to end: temporary `every 1m` schedule fired
+      within 20s, wrote a passing `webui.selftest` report for 32 pages, then
+      schedule restored to `daily 04:20`.
 - [x] Second Forgejo repo published:
       `Alfires/hermes-control-panel-installer` (`9f8a355`); one-line raw URL
       returns the script and `install.sh status` reports the live compose stack.
 - [x] Two-container runtime deployed without duplicating the existing Hermes
       gateway (gateway stays owned by `/opt/hermes` on 8642/9119; panel `webui`
       is the only recreated service).
+- [x] Browser-verification procedure captured as toolbox tool
+      `panel-browser-verify`.
