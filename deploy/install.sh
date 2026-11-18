@@ -20,7 +20,13 @@ if [ -d "$DIR/.git" ]; then
   git -C "$DIR" reset --hard -q origin/main
 else
   say "cloning source from local Forgejo"
-  git clone -q "$REPO_URL" "$DIR"
+  TMP=$(mktemp -d /opt/.hcp-clone.XXXXXX)
+  git clone -q "$REPO_URL" "$TMP"
+  # The directory may already hold the root-only Forgejo token or panel data.
+  shopt -s dotglob
+  cp -a "$TMP"/. "$DIR"/
+  shopt -u dotglob
+  rm -rf "$TMP"
 fi
 
 # 2. root-only HMAC key for host actions
