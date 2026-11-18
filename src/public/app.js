@@ -4,6 +4,12 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const arr = (v) => {
+  if (Array.isArray(v)) return v;
+  if (typeof v !== 'string' || !v) return [];
+  try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; }
+  catch (e) { return v.split(',').map(s => s.trim()).filter(Boolean); }
+};
 const fmt = (ts) => ts ? new Date(ts * 1000).toLocaleString() : '—';
 const L = () => { try { return (S.layout && S.layout.value && JSON.parse(S.layout.value)) || {}; }
                   catch (e) { return {}; } };
@@ -140,7 +146,7 @@ function renderOverview() {
     <div class="card"><div class="num" style="color:${findingCount()?'var(--bad)':'var(--ok)'}">${findingCount()}</div><div class="lbl">Open findings</div></div>
   </div>`;
   const cards = agents.map((a,i) => {
-    const tools = a.tools || [];
+    const tools = arr(a.tools);
     const sess = (S.sessions||[]).filter(s => s.agent_id === a.id).length;
     const medal = i < 3 ? ['gold','silver','bronze'][i] : '';
     return `<div class="card">
@@ -186,7 +192,7 @@ function renderAgents() {
     <td><span class="rank ${i<3?['gold','silver','bronze'][i]:''}">${i+1}</span></td>
     <td><strong>${esc(a.name)}</strong><br><span class="muted mono">${esc(a.slug)}</span></td>
     <td>${esc(a.role)}</td><td class="mono">${esc(a.model)}</td>
-    <td>${(a.tools||[]).length} tools<br><span class="muted">${(a.vault_names||[]).length} secrets</span></td>
+    <td>${arr(a.tools).length} tools<br><span class="muted">${arr(a.vault_names).length} secrets</span></td>
     <td>${esc(a.schedule || 'manual')}</td>
     <td><button class="btn small" data-edit="${a.id}">Edit</button>
       ${a.slug==='security'||a.slug==='system'||a.slug==='webui'||a.slug==='chat'
@@ -366,8 +372,8 @@ function renderContext(sess = null) {
     <dt>Model</dt><dd class="mono">${esc(a.model||'')}</dd>
     <dt>Session</dt><dd class="mono">${sess?('#'+sess.id):'not created yet'}</dd>
     <dt>Schedule</dt><dd>${esc(a.schedule||'manual')}</dd>
-    <dt>Tools</dt><dd>${(a.tools||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</dd>
-    <dt>Secret grants</dt><dd>${(a.vault_names||[]).length?esc((a.vault_names||[]).join(', ')):'none'}</dd>
+    <dt>Tools</dt><dd>${arr(a.tools).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</dd>
+    <dt>Secret grants</dt><dd>${arr(a.vault_names).length?esc(arr(a.vault_names).join(', ')):'none'}</dd>
     <dt>System prompt</dt><dd>${esc(a.system_prompt||'')}</dd>
   </dl>`;
 }
@@ -377,7 +383,7 @@ function closeChat() { $('#chat').classList.add('hidden'); chatAgent = null; cha
 function agentModal(a = null) {
   const edit = !!a;
   const tools = Object.entries(S.tools || {});
-  const chosen = a ? (a.tools||[]) : ['chat'];
+  const chosen = a ? arr(a.tools) : ['chat'];
   const wrap = document.createElement('div');
   wrap.className = 'modal';
   wrap.innerHTML = `<form class="modal-card" id="agent-form">
@@ -390,7 +396,7 @@ function agentModal(a = null) {
       <label class="full">Description<textarea name="description" rows="2">${esc(a?.description||'')}</textarea></label>
       <label class="full">System prompt<textarea name="system_prompt" rows="4">${esc(a?.system_prompt||'You are a helpful, concise agent. Never reveal secret values.')}</textarea></label>
       <label>Schedule<input name="schedule" value="${esc(a?.schedule||'')}" placeholder="daily 03:15 or every 30m"></label>
-      <label>Secret names (comma separated)<input name="vault_names" value="${esc((a?.vault_names||[]).join(', '))}"></label>
+      <label>Secret names (comma separated)<input name="vault_names" value="${esc(arr(a?.vault_names).join(', '))}"></label>
     </div>
     <h3>Tool permissions</h3>
     <div class="check-grid">${tools.map(([k,v])=>`<label class="check"><input type="checkbox" name="tools" value="${k}" ${chosen.includes(k)?'checked':''}>
