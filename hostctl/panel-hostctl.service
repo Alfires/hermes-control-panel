@@ -10,13 +10,12 @@ UMask=0077
 Environment=PANEL_HOST_SOCKET=/run/panel-host.sock
 Environment=PANEL_HOST_KEY=/opt/panel-secrets/hostctl.key
 Environment=PANEL_HOST_LOG=/var/log/panel-hostctl.log
-ExecStart=/usr/bin/python3 /opt/hermes-control-panel/hostctl.py
+ExecStart=/usr/bin/python3 /opt/hermes-control-panel/hostctl/hostctl.py
 Restart=always
 RestartSec=2
 NoNewPrivileges=yes
 ProtectSystem=full
 ProtectHome=read-only
-ReadOnlyPaths=/etc /home /usr
 ReadWritePaths=/opt /run /var/log /etc/ssh/sshd_config.d
 PrivateTmp=yes
 

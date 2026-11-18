@@ -23,6 +23,7 @@ RUN printf '%s\n' \
   'clear_env = no' \
   'php_admin_value[error_log] = /var/log/panel/php-error.log' \
   'php_admin_flag[log_errors] = on' \
+  'php_admin_flag[display_errors] = off' \
   > /usr/local/etc/php-fpm.d/zz-panel.conf \
  && rm -f /usr/local/etc/php-fpm.d/www.conf.default
 

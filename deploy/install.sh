@@ -12,6 +12,9 @@ say() { echo "[panel] $*"; }
 
 mkdir -p "$SECRETS" "$DIR/data"
 chmod 700 "$SECRETS"
+# The container's PHP workers run as uid 1000 (deck); SQLite lives here.
+chown 1000:1000 "$DIR/data"
+chmod 770 "$DIR/data"
 
 # 1. source (clone once, then update)
 if [ -d "$DIR/.git" ]; then
