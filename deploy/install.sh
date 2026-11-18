@@ -78,7 +78,8 @@ say "host-control broker: $(systemctl is-active panel-hostctl)"
 
 # 5. single container - force recreate so the socket mounts are the real files
 cd "$DIR"
-docker compose up -d --build --force-recreate >/dev/null
+docker compose down --remove-orphans >/dev/null 2>&1 || true
+docker compose up -d --build >/dev/null
 say "container: $(docker inspect -f '{{.State.Status}}' hermes-panel)"
 
 say "panel:  http://192.168.2.157:9120  (also on the Tailscale IP)"
