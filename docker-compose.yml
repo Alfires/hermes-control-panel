@@ -1,0 +1,25 @@
+services:
+  panel:
+    build: .
+    image: hermes-control-panel:local
+    container_name: hermes-panel
+    restart: unless-stopped
+    env_file: ./panel.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9120:8080"
+    volumes:
+      - ./data:/var/lib/panel
+      # Root-owned brokers. The container's PHP workers run as uid 1000 (deck),
+      # which is the only group allowed to talk to either socket.
+      - /run/vault-broker.sock:/run/vault-broker.sock
+      - /run/panel-host.sock:/run/panel-host.sock
+      # Root-only HMAC key; entrypoint copies it to a 0400 uid-1000 file.
+      - /opt/panel-secrets/hostctl.key:/run/hostctl-src/hostctl.key:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api.php?action=me"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

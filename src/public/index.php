@@ -1,0 +1,80 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../lib/auth.php';
+Auth::ensureOwner();
+?>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Hermes Control Deck</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<div id="login" class="login-wrap hidden">
+  <form id="login-form" class="login-card" autocomplete="on">
+    <div class="login-mark">⬡</div>
+    <h1>Hermes Control Deck</h1>
+    <p class="muted">Owner access. Agents never see this page.</p>
+    <label>Username<input name="username" id="login-user" value="admin" autocomplete="username" required></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary wide" type="submit">Unlock</button>
+    <div id="login-error" class="err"></div>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">⬡</span><span class="brand-name" id="brand-name">HERMES</span></div>
+    <nav id="nav" class="nav"></nav>
+    <div class="sidebar-foot">
+      <div class="owner-chip"><span class="dot"></span><span id="owner-name">owner</span></div>
+      <button class="btn ghost small" id="logout-btn">Lock</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn" id="menu-btn" title="Full menu">☰</button>
+      <div class="title-wrap"><h1 id="view-title">Overview</h1><span class="subtitle" id="view-sub"></span></div>
+      <div class="top-pills" id="pills"></div>
+      <button class="icon-btn" id="refresh-btn" title="Refresh">⟳</button>
+    </header>
+    <section id="content" class="content"></section>
+  </main>
+
+  <div id="drawer-backdrop" class="backdrop hidden"></div>
+  <aside id="drawer" class="drawer hidden">
+    <div class="drawer-head"><h2>Full menu</h2><button class="icon-btn" id="drawer-close">✕</button></div>
+    <div id="drawer-body" class="drawer-body"></div>
+  </aside>
+
+  <div id="chat" class="chat-overlay hidden">
+    <div class="chat-head">
+      <button class="icon-btn" id="chat-back">←</button>
+      <div><strong id="chat-agent">Agent</strong><span class="muted" id="chat-session"></span></div>
+      <div class="chat-head-actions">
+        <button class="btn ghost small" id="chat-new">New session</button>
+        <button class="btn ghost small" id="chat-context">Context</button>
+        <button class="icon-btn" id="chat-close">✕</button>
+      </div>
+    </div>
+    <div class="chat-main">
+      <div class="chat-thread" id="chat-thread"></div>
+      <aside class="chat-context hidden" id="chat-context-panel"></aside>
+    </div>
+    <form class="chat-compose" id="chat-form">
+      <textarea id="chat-input" rows="2" placeholder="Message this agent… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

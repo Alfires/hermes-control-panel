@@ -29,10 +29,12 @@ RUN printf '%s\n' \
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisord.conf
 COPY crontab /etc/crontabs/root
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY src/ /var/www/html/
 
 RUN chown -R 1000:1000 /var/www/html /var/lib/panel /var/log/panel \
- && chmod 750 /var/lib/panel
+ && chmod 750 /var/lib/panel \
+ && chmod 755 /usr/local/bin/entrypoint.sh
 
 EXPOSE 8080
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

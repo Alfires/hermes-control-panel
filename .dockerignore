@@ -1,0 +1,11 @@
+.git
+.gitignore
+data/
+panel.env
+*.key
+*.log
+__pycache__/
+tests/
+deploy/
+hostctl/*.service
+README.md
