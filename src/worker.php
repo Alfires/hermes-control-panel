@@ -22,7 +22,7 @@ if ($mode === 'security') {
     RBAC::expirePending();
     $scan = HostCtl::call('security_scan', [], null);
     if (!empty($scan['ok'])) {
-        DB::run("UPDATE findings SET status='resolved', decided_at=? WHERE status='open'", [time()]);
+        DB::run("UPDATE findings SET status='resolved' WHERE status='open'");
         foreach ($scan['findings'] ?? [] as $f) {
             DB::run('INSERT INTO findings(source,severity,title,detail,status,created_at) VALUES(?,?,?,?,?,?)', [
                 Util::str($f['source'] ?? 'hostctl', 80),
