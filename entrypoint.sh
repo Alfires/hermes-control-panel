@@ -5,8 +5,8 @@
 set -eu
 # The data volume comes from the host; make sure the FPM user can write WAL files.
 if [ -d /var/lib/panel ]; then
-  chown 1000:1000 /var/lib/panel 2>/dev/null || true
-  chmod 770 /var/lib/panel 2>/dev/null || true
+  chown -R 1000:1000 /var/lib/panel 2>/dev/null || true
+  chmod -R u+rwX /var/lib/panel 2>/dev/null || true
 fi
 mkdir -p /run/secrets
 if [ -f /run/hostctl-src/hostctl.key ]; then

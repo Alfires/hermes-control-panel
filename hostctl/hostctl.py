@@ -89,12 +89,19 @@ def verify(action: str, args: dict, ts: str, token: str) -> tuple[bool, str]:
 
 SECRET_KEYS = (r"password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|"
                r"private[_-]?key|credential|authorization|auth[_-]?header|session[_-]?key")
+# (compiled pattern, replacement) - the replacement is paired explicitly so a
+# group reference can never point at a group the pattern does not have.
 PATTERNS = [
-    re.compile(r"(?i)(authorization\s*[:=]\s*)(bearer\s+)?[^\s\"',}]+", re.S),
-    re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}"),
-    re.compile(r"(?i)(\"(?:%s)\"\s*:\s*)\"[^\"]*\"" % SECRET_KEYS),
-    re.compile(r"(?i)\b(%s)(\s*[:=]\s*)['\" ]?([^\s'\"',;}]{3,})" % SECRET_KEYS),
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+    (re.compile(r"(?i)(authorization\s*[:=]\s*)(bearer\s+)?[^\s\"',}]+", re.S),
+     r"\1\2***CENSORED***"),
+    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}"),
+     r"\1***CENSORED***"),
+    (re.compile(r"(?i)(\"(?:%s)\"\s*:\s*)\"[^\"]*\"" % SECRET_KEYS),
+     r"\1***CENSORED***"),
+    (re.compile(r"(?i)\b(%s)(\s*[:=]\s*)['\" ]?([^\s'\"',;}]{3,})" % SECRET_KEYS),
+     r"\1\2***CENSORED***"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+     "***CENSORED***"),
 ]
 
 
@@ -102,15 +109,8 @@ def scrub(value):
     """Never let a credential-shaped string leave this process."""
     if isinstance(value, str):
         out = value
-        for pat in PATTERNS:
-            if pat.pattern.startswith("(?i)(authorization"):
-                out = pat.sub(r"\1\2***CENSORED***", out)
-            elif "bearer" in pat.pattern[:30]:
-                out = pat.sub(r"\1***CENSORED***", out)
-            elif "PRIVATE KEY" in pat.pattern:
-                out = pat.sub("***CENSORED***", out)
-            else:
-                out = pat.sub(r"\1\2***CENSORED***", out)
+        for pat, repl in PATTERNS:
+            out = pat.sub(repl, out)
         return out[:MAX_OUT]
     if isinstance(value, dict):
         return {str(k): scrub(v) for k, v in value.items()}
