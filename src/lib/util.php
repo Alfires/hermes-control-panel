@@ -12,11 +12,14 @@ final class Util {
 
     public static function body(): array {
         $raw = file_get_contents('php://input') ?: '';
-        if ($raw === '' && !empty($_POST)) {
-            return $_POST;
+        if ($raw !== '') {
+            $d = json_decode($raw, true);
+            if (is_array($d)) return $d;
+            // Form-encoded bodies are common for login helpers and probes.
+            parse_str($raw, $form);
+            if (is_array($form) && $form) return $form;
         }
-        $d = json_decode($raw, true);
-        return is_array($d) ? $d : [];
+        return $_POST ?? [];
     }
 
     public static function str($v, int $max = 4000): string {
