@@ -180,6 +180,31 @@ CREATE TABLE IF NOT EXISTS schedule_runs (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_doc ON search_docs(kind, ref_id);
 SQL);
+        // Existing decks have a legacy audit table without the hash chain.
+        // CREATE TABLE IF NOT EXISTS cannot migrate it, so add columns in place.
+        self::ensureColumn($p, 'audit', 'prev_hash', 'TEXT');
+        self::ensureColumn($p, 'audit', 'hash', 'TEXT');
+
+        // Backfill legacy audit rows so the append-only chain stays verifiable.
+        $prev = '';
+        foreach ($p->query('SELECT id,actor,action,detail,created_at,hash FROM audit ORDER BY id ASC') as $row) {
+            if (!empty($row['hash'])) { $prev = (string) $row['hash']; continue; }
+            $hash = hash('sha256', $prev . '|' . $row['actor'] . '|' . $row['action'] . '|'
+                . $row['detail'] . '|' . $row['created_at']);
+            $stmt = $p->prepare('UPDATE audit SET prev_hash=?, hash=? WHERE id=?');
+            $stmt->execute([$prev, $hash, (int) $row['id']]);
+            $prev = $hash;
+        }
+    }
+
+    private static function ensureColumn(PDO $p, string $table, string $column, string $type): void {
+        $columns = [];
+        foreach ($p->query('PRAGMA table_info(' . $table . ')') as $row) {
+            $columns[] = $row['name'];
+        }
+        if (!in_array($column, $columns, true)) {
+            $p->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $type);
+        }
     }
 
     public static function run(string $sql, array $args = []): PDOStatement {
