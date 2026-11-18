@@ -217,7 +217,7 @@ final class Engine {
 
         for ($step = 0; $step < 7; $step++) {
             $out = self::callModel(
-                [['role' => 'system', 'content' => self::systemPrompt($agent)]] + $messages,
+                array_merge([['role' => 'system', 'content' => self::systemPrompt($agent)]], $messages),
                 $agent['model']
             );
             if (!$out['ok']) {
