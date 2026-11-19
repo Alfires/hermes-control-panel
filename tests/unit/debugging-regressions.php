@@ -95,6 +95,78 @@ test('debug.hostctl.rules.path.aligned', static function (): void {
     contains($sh, 'critical-packages.json', 'installer must write the rules file');
 });
 
+// 10b. Every registered page must resolve to a title AND a real destination.
+//      Before this fix 18 of the 32 nav items fell through to one generic view
+//      with a blank header, which made the UI feel broken and unintuitive.
+test('debug.ui.every.registered.page.is.reachable', static function (): void {
+    $registry = (string) file_get_contents(repo_path('src/lib/registry.php'));
+    ok((bool) preg_match('/public static function builtin\(\): array\s*\{(.*?)\$pages = \[\]/s', $registry, $m),
+        'could not locate PageRegistry::builtin() groups');
+    preg_match_all("/'([a-z][a-z0-9-]*)'/", $m[1], $ids);
+    $pages = array_values(array_unique($ids[1]));
+    ok(count($pages) >= 30, 'expected the full registered page set, got ' . count($pages));
+
+    $js = (string) file_get_contents(repo_path('src/public/app.js'));
+    ok((bool) preg_match('/const TITLES = \{(.*?)\n\};/s', $js, $t), 'TITLES map missing');
+    preg_match_all("/'?([a-z][a-z0-9-]*)'?\s*:\s*\[/", $t[1], $titled);
+    ok((bool) preg_match('/const fn = \{(.*?)\};/s', $js, $f), 'view renderer map missing');
+    preg_match_all("/'?([a-z][a-z0-9-]*)'?\s*:/", $f[1], $rendered);
+    ok((bool) preg_match('/const PAGE_SOURCE = \{(.*?)\n\};/s', $js, $ps), 'PAGE_SOURCE map missing');
+    preg_match_all("/'([a-z][a-z0-9-]*)'\s*:/", $ps[1], $sources);
+    ok((bool) preg_match('/const PAGE_NOTE = \{(.*?)\n\};/s', $js, $pn), 'PAGE_NOTE map missing');
+    preg_match_all("/'([a-z][a-z0-9-]*)'\s*:/", $pn[1], $notes);
+
+    $titles = array_flip($titled[1]);
+    $renderers = array_flip($rendered[1]);
+    $sources = array_flip($sources[1]);
+    $notes = array_flip($notes[1]);
+    $missing = [];
+    foreach ($pages as $page) {
+        $hasTitle = isset($titles[$page]);
+        $hasDest = isset($renderers[$page]) || isset($sources[$page]) || isset($notes[$page]);
+        if (!$hasTitle || !$hasDest) $missing[] = $page . (!$hasTitle ? '(no title)' : '(no destination)');
+    }
+    ok($missing === [], 'registered pages with no working view: ' . implode(', ', $missing));
+});
+
+// 9b. The 10s background refresh rebuilt #content and silently erased anything
+//     the owner was typing. It now pauses while a form is focused or dirty.
+test('debug.ui.refresh.preserves.typed.input', static function (): void {
+    $js = (string) file_get_contents(repo_path('src/public/app.js'));
+    contains($js, 'function hasUnsavedInput()', 'form-dirty guard must exist');
+    ok((bool) preg_match('/setInterval\(async \(\) => \{(.*?)\}, 10000\)/s', $js, $m),
+        'auto-refresh interval not found');
+    contains($m[1], '!hasUnsavedInput()', 'auto-refresh must skip dirty forms');
+});
+
+// 9c. "Recorded actions" used pending-only data, so decided approvals vanished.
+test('debug.ui.approval.history.is.loaded', static function (): void {
+    $api = (string) file_get_contents(repo_path('src/public/api.php'));
+    $js = (string) file_get_contents(repo_path('src/public/app.js'));
+    contains($api, "'approval_history' => DB::all", 'bootstrap must supply decided approvals');
+    contains($js, 'S.approval_history||S.approvals', 'Recorded actions must use full history');
+});
+
+// 9d. Empty vault left an active "Use secret" button that could only error.
+test('debug.ui.empty.vault.form.is.disabled', static function (): void {
+    $js = (string) file_get_contents(repo_path('src/public/app.js'));
+    contains($js, 'noSecrets', 'vault view must know when there are no secrets');
+    contains($js, "data-vault-use \${noSecrets?'disabled':''}", 'empty vault must disable injection');
+});
+
+// 9e. Proposal expiry and rollback state were written but never enforced.
+test('debug.config.expiry.and.rollback.state.are.enforced', static function (): void {
+    $cfg = (string) file_get_contents(repo_path('src/lib/config.php'));
+    contains($cfg, "(int)\$proposal['expires_at'] <= time()", 'proposal expiry must be checked');
+    contains($cfg, "['active', 'rolled_back', 'superseded']", 'rollback must reject draft revisions');
+});
+
+// 9f. RBAC::expirePending() was dead code until the minute tick called it.
+test('debug.worker.expires.stale.escalations', static function (): void {
+    $w = (string) file_get_contents(repo_path('src/worker.php'));
+    contains($w, 'RBAC::expirePending();', 'the minute tick must expire stale escalations');
+});
+
 // 10. One-line installer must emit the variable names the PHP app actually reads.
 test('debug.installer.env.names.match.app', static function (): void {
     $installer = (string) file_get_contents(dirname(__DIR__, 3) . '/hermes-control-panel-installer/install.sh');

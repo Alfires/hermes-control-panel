@@ -27,6 +27,16 @@ const L = () => { try { return (S.layout && S.layout.value && JSON.parse(S.layou
 const ago = (ts) => { if (!ts) return '—'; const s = Math.floor(Date.now()/1000 - ts);
   if (s < 60) return s + 's ago'; if (s < 3600) return Math.floor(s/60) + 'm ago';
   if (s < 86400) return Math.floor(s/3600) + 'h ago'; return Math.floor(s/86400) + 'd ago'; };
+/** The 10s background refresh used to rebuild #content mid-typing and wipe
+ *  half-filled forms. Pause it while the owner is editing anything. */
+function hasUnsavedInput() {
+  const active = document.activeElement;
+  if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) return true;
+  return $$('#content input, #content textarea, #content select').some(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') return el.checked !== el.defaultChecked;
+    return el.value !== el.defaultValue;
+  });
+}
 
 let S = {};
 let view = 'overview';
@@ -64,6 +74,27 @@ const TITLES = {
   settings:['Settings','Layout the agents can propose, and owner preferences'],
   audit:['Audit','Every decision and privileged call'],
   setup:['Setup','Endpoints, brokers and operator commands'],
+  // Registered Hermes pages. Each one now has a real title instead of falling
+  // through to the generic Hermes screen with a blank header.
+  'hermes-status':['Hermes status','Gateway health, version and uptime'],
+  'hermes-sessions':['Hermes sessions','Sessions known to the Hermes gateway'],
+  'hermes-files':['Files','File metadata exposed by Hermes — names and sizes only'],
+  'hermes-analytics':['Analytics','Request, token and error counters'],
+  'hermes-models':['Models','Models currently offered by the gateway'],
+  'hermes-logs':['Logs','Recent gateway log entries'],
+  'hermes-cron':['Cron','Scheduled jobs inside Hermes'],
+  'hermes-skills':['Skills','Installed Hermes skills'],
+  'hermes-plugins':['Plugins','Installed plugins and their state'],
+  'hermes-mcp':['MCP','Model Context Protocol integrations'],
+  'hermes-pairing':['Pairing','Device pairing is managed from the Hermes dashboard'],
+  'hermes-channels':['Channels','Connected messaging platforms'],
+  'hermes-webhooks':['Webhooks','Configured webhook endpoints'],
+  'hermes-profiles':['Profiles','Saved Hermes profiles'],
+  'hermes-config':['Config schema','Configuration fields exposed by Hermes'],
+  'hermes-env':['Environment names','Variable names only — values are never exposed'],
+  'hermes-system':['System','Gateway capabilities and version'],
+  'hermes-docs':['Documentation','Where to find the Hermes manuals'],
+  'hermes-chat':['Hermes chat','Open a conversation with an agent'],
 };
 const HERMES_AREAS = [
   ['hermes-status','Status','hermes.status'], ['hermes-sessions','Sessions','hermes.sessions.list'],
@@ -77,6 +108,23 @@ const HERMES_AREAS = [
   ['hermes-profiles','Profiles','hermes.profiles'], ['hermes-plugins','Plugins','hermes.plugins'],
   ['hermes-mcp','MCP','hermes.mcp'],
 ];
+// Each registered Hermes page resolves to one curated, scrubbed data source.
+// Pages without a safe source get an honest explanation instead of a dead link.
+const PAGE_SOURCE = {
+  'hermes-status':'hermes.status', 'hermes-sessions':'hermes.sessions.list',
+  'hermes-files':'hermes.files.meta', 'hermes-analytics':'hermes.analytics',
+  'hermes-models':'hermes.models.options', 'hermes-logs':'hermes.logs',
+  'hermes-cron':'hermes.cron.jobs', 'hermes-skills':'hermes.skills.list',
+  'hermes-plugins':'hermes.plugins', 'hermes-mcp':'hermes.mcp',
+  'hermes-channels':'hermes.messaging.platforms', 'hermes-webhooks':'hermes.webhooks',
+  'hermes-profiles':'hermes.profiles', 'hermes-config':'hermes.config.schema',
+  'hermes-env':'hermes.env.names', 'hermes-system':'hermes.gateway.capabilities',
+};
+const PAGE_NOTE = {
+  'hermes-pairing':'Pairing tokens are intentionally not proxied. Use the Hermes dashboard to pair a device; the panel never handles its credentials.',
+  'hermes-docs':'The Hermes manuals live on the gateway dashboard. This panel links to Hermes rather than caching its documentation.',
+  'hermes-chat':'Chats run through this panel so the model has no tools of its own. Open an agent below to start one.',
+};
 
 const csrfToken = () => (document.cookie.match(/(?:^|;\s*)panel_csrf=([^;]+)/) || [])[1] || '';
 
@@ -134,6 +182,7 @@ async function bootstrap(first = false) {
 function showLogin() { $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); }
 function showApp() { $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); }
 
+const collapsedGroups = new Set(['Hermes']); // Hermes starts folded; Core is always visible.
 function renderNav() {
   const counts = {approvals: pendingCount(), security: findingCount()};
   let items = NAV;
@@ -143,16 +192,39 @@ function renderNav() {
       id: p.id, ico: (p.nav && p.nav.icon) || '▦', label: (p.nav && p.nav.label) || p.id,
       group: (p.nav && p.nav.group) || 'Core',
     }));
-    const known = new Set(items.map(i => i.id));
-    for (const n of NAV) if (!known.has(n.id) && ['search','themes','voice','self-test','hermes'].includes(n.id)) items.push(n);
   }
-  $('#nav').innerHTML = items.map(n => `
-    <button class="nav-item ${view===n.id?'active':''}" data-view="${esc(n.id)}">
-      <span class="ico">${esc(n.ico)}</span><span>${esc(n.label)}</span>
-      ${counts[n.id] ? `<span class="nav-badge">${counts[n.id]}</span>` : ''}
-    </button>`).join('');
-  $$('.nav-item').forEach(b => b.onclick = () => { view = b.dataset.view; renderNav(); render(); });
+  // Use the plain-language title from PAGE_META when one exists.
+  items = items.map(n => ({...n, label: (TITLES[n.id] && TITLES[n.id][0]) || n.label}));
+  const q = (navFilter || '').trim().toLowerCase();
+  const shown = q ? items.filter(n => (n.label + ' ' + n.id).toLowerCase().includes(q)) : items;
+  const groups = [...new Set(shown.map(n => n.group || 'Core'))];
+  $('#nav').innerHTML = `
+    <div class="nav-filter"><span>⌕</span><input id="nav-filter" placeholder="Jump to a page…" value="${esc(navFilter)}" autocomplete="off"></div>
+    ${groups.map(g => {
+      const folded = !q && collapsedGroups.has(g);
+      return `<div class="nav-group">
+        <button class="nav-group-head" data-group="${esc(g)}"><span>${esc(g)}</span>
+          <span class="caret">${folded ? '▸' : '▾'}</span></button>
+        ${folded ? '' : `<div class="nav-group-items">${shown.filter(n => (n.group || 'Core') === g).map(n => `
+          <button class="nav-item ${view===n.id?'active':''}" data-view="${esc(n.id)}" title="${esc(n.label)}">
+            <span class="ico">${esc(n.ico)}</span><span class="nav-label">${esc(n.label)}</span>
+            ${counts[n.id] ? `<span class="nav-badge">${counts[n.id]}</span>` : ''}
+          </button>`).join('')}</div>`}</div>`;
+    }).join('')}`;
+  const filter = $('#nav-filter');
+  if (filter) {
+    filter.oninput = () => { navFilter = filter.value; const pos = filter.selectionStart; renderNav();
+      const f2 = $('#nav-filter'); if (f2) { f2.focus(); f2.setSelectionRange(pos, pos); } };
+    filter.onkeydown = e => { if (e.key === 'Escape') { navFilter = ''; renderNav(); } };
+  }
+  $$('[data-group]').forEach(b => b.onclick = () => {
+    const g = b.dataset.group;
+    if (collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
+    renderNav();
+  });
+  $$('.nav-item').forEach(b => b.onclick = () => { view = b.dataset.view; navFilter = ''; renderNav(); render(); });
 }
+let navFilter = '';
 function renderPills() {
   const l = L();
   const pills = [
@@ -171,17 +243,79 @@ function render() {
     settings:renderSettings, audit:renderAudit, setup:renderSetup,
     search:renderSearch, themes:renderThemes, voice:renderVoice,
     'self-test':renderSelfTest, hermes:renderHermes}[view];
-  $('#content').innerHTML = fn ? fn() : renderHermes();
+  if (fn) {
+    $('#content').innerHTML = fn();
+    bindContent();
+    if (view === 'voice') bindVoice();
+    if (view === 'self-test') loadSelfTest();
+    if (view === 'search') bindSearch();
+    return;
+  }
+  // A registered page with no bespoke renderer still gets its own titled view.
+  // Before this fix every such page silently displayed the generic Hermes grid.
+  renderSourcePage(view);
+}
+
+/** Shared renderer for a page backed by one curated Hermes source. */
+function renderSourcePage(pageId) {
+  const source = PAGE_SOURCE[pageId];
+  const note = PAGE_NOTE[pageId];
+  const title = (TITLES[pageId] || [pageId, ''])[0];
+  const back = `<div class="row" style="margin-bottom:14px"><button class="btn ghost small" data-goto="hermes">← All Hermes areas</button>
+    <span class="muted" style="font-size:11px;margin-left:auto">Curated source · nothing leaves the Deck</span></div>`;
+  if (!source) {
+    $('#content').innerHTML = back + `<div class="card" style="padding:22px;max-width:720px">
+      <h2>${esc(title)}</h2><p class="muted">${esc(note || 'This area has no safe data source in the panel yet.')}</p>
+      <div class="row" style="margin-top:16px"><button class="btn primary small" data-goto="hermes">Browse Hermes areas</button>
+      <button class="btn small" data-newchat>Open an agent chat</button></div></div>`;
+    bindContent();
+    return;
+  }
+  $('#content').innerHTML = back + `<div id="source-body"><p class="muted">Loading ${esc(source)}…</p></div>`;
   bindContent();
-  if (view === 'voice') bindVoice();
-  if (view === 'self-test') loadSelfTest();
-  if (view === 'search') bindSearch();
+  api('hermes.source', {source}).then(r => {
+    const box = $('#source-body'); if (!box) return;
+    if (!r.ok) { box.innerHTML = `<div class="card"><p>${esc(r.error || 'Unavailable')}</p>
+      <p class="muted" style="font-size:11px">The gateway may be offline or this capability disabled.</p></div>`; return; }
+    box.innerHTML = dataView(r.data, source, r.cached);
+  }).catch(() => { const b = $('#source-body'); if (b) b.innerHTML = '<div class="card">Could not load this source.</div>'; });
+}
+
+/** Turn a source payload into a readable table, never a raw JSON wall. */
+function dataView(data, source, cached) {
+  const rows = Array.isArray(data) ? data : [data];
+  const objects = rows.filter(r => r && typeof r === 'object' && !Array.isArray(r));
+  let body = '';
+  if (objects.length && objects.every(o => Object.keys(o).every(k => typeof o[k] !== 'object'))) {
+    const cols = [...new Set(objects.flatMap(o => Object.keys(o)))].slice(0, 8);
+    body = `<div style="overflow:auto"><table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${objects.map(o => `<tr>${cols.map(c => `<td>${esc(o[c] ?? '—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  } else {
+    body = rows.map(row => `<div class="data-row">${esc(typeof row === 'string' ? row : JSON.stringify(row))}</div>`).join('');
+  }
+  const raw = JSON.stringify(data, null, 2);
+  return `<div class="card" style="padding:18px">
+    <div class="row" style="justify-content:space-between"><h3>${esc(source)} ${cached?'<span class="muted" style="font-size:10px">(cached)</span>':''}</h3>
+      <button class="btn ghost small" data-raw-toggle>Show raw data</button></div>
+    <div style="margin-top:12px">${body || '<p class="muted">No data returned.</p>'}</div>
+    <pre class="raw-data hidden">${esc(raw)}</pre></div>`;
 }
 
 /* ---------------------------------------------------------------- overview */
 function renderOverview() {
   const agents = sortedAgents();
   const openSessions = (S.sessions||[]).length;
+  // One glance, one action: surface the things that actually need a decision.
+  const pend = pendingCount(), finds = findingCount();
+  const attention = (!pend && !finds) ? '' : `<div class="attention">
+    <div class="attention-title">Needs your attention</div>
+    ${pend ? `<div class="attention-row"><span class="attention-dot warn"></span>
+      <span><strong>${pend}</strong> approval${pend===1?'':'s'} waiting on you</span>
+      <button class="btn primary small" data-goto="approvals">Review</button></div>` : ''}
+    ${finds ? `<div class="attention-row"><span class="attention-dot bad"></span>
+      <span><strong>${finds}</strong> open security finding${finds===1?'':'s'}</span>
+      <button class="btn small" data-goto="security">Inspect</button></div>` : ''}
+  </div>`;
   const hero = `
   <div class="hero">
     <div class="hero-copy">
@@ -225,7 +359,7 @@ function renderOverview() {
   }).join('');
   const acts = (S.audit||[]).slice(0,8).map(a =>
     `<tr><td>${ago(a.created_at)}</td><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="muted">${esc(a.detail||'')}</td></tr>`).join('');
-  return hero + kpi + `<div class="section-head"><h2>Agent ranks</h2><span class="muted">ordered by layout</span></div>
+  return attention + hero + kpi + `<div class="section-head"><h2>Agent ranks</h2><span class="muted">ordered by layout</span></div>
     <div class="grid cards">${cards || '<div class="empty">No agents yet.</div>'}</div>
     <div class="section-head" style="margin-top:22px"><h2>Recent activity</h2></div>
     <div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead><tbody>${acts}</tbody></table></div>`;
@@ -271,7 +405,7 @@ function renderApprovals() {
     <td>${e.status==='pending'
       ? `<button class="btn primary small" data-esc="${e.id}" data-ok="1">Approve</button>
          <button class="btn danger small" data-esc="${e.id}" data-ok="0">Deny</button>` : '—'}</td></tr>`).join('');
-  const ap = (S.approvals||[]).map(a => `<tr><td>#${a.id}</td><td>${esc(a.kind)}</td><td>${esc(a.summary)}</td><td>${esc(a.status)}</td><td>${fmt(a.created_at)}</td></tr>`).join('');
+  const ap = (S.approval_history||S.approvals||[]).map(a => `<tr><td>#${a.id}</td><td>${esc(a.kind)}</td><td>${esc(a.summary)}</td><td>${esc(a.status)}</td><td>${fmt(a.created_at)}</td></tr>`).join('');
   return `<div class="section-head"><h2>One-time escalations</h2><span class="muted">each use expires</span></div>
     <div class="card"><table><thead><tr><th>ID</th><th>Agent</th><th>Capability</th><th>Reason</th><th>Status</th><th></th></tr></thead>
     <tbody>${esc1 || '<tr><td colspan="6" class="muted">Nothing waiting.</td></tr>'}</tbody></table></div>
@@ -295,10 +429,12 @@ function renderSecurity() {
 
 /* ------------------------------------------------------------------ vault */
 function renderVault() {
-  const rows = (S.vault?.secrets||[]).map(s => `<tr>
+  const secrets = S.vault?.secrets || [];
+  const rows = secrets.map(s => `<tr>
     <td class="mono">${esc(s.name)}</td><td>${esc(s.label)}</td>
     <td>${esc(JSON.stringify(s.allow||{}))}</td><td>${esc(s.approval)}</td></tr>`).join('');
-  const opts = (S.vault?.secrets||[]).map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+  const opts = secrets.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+  const noSecrets = secrets.length === 0;
   return `<div class="section-head"><h2>Stored secrets</h2>
     <span class="pill ${S.vault?.available?'on':'off'}">broker ${S.vault?.available?'online':'offline'}</span></div>
     <div class="card"><table><thead><tr><th>Name</th><th>Label</th><th>Allowed use</th><th>Approval</th></tr></thead>
@@ -316,8 +452,10 @@ function renderVault() {
       <label class="full">Action parameters (JSON, use {{secret}} as placeholder)
         <textarea id="v-use-params" rows="4">{"url":"https://example.com","method":"GET","headers":{"Authorization":"Bearer {{secret}}"}}</textarea></label>
       <label class="full">Purpose <input id="v-use-purpose" placeholder="why this use is needed"></label>
-    </div><div class="row" style="margin-top:12px"><button class="btn primary small" data-vault-use>Use secret</button>
-      <span class="muted" style="font-size:11px">You will still approve at the vault broker.</span></div>
+    </div><div class="row" style="margin-top:12px"><button class="btn primary small" data-vault-use ${noSecrets?'disabled':''}>Use secret</button>
+      <span class="muted" style="font-size:11px">${noSecrets
+        ? 'Add a secret on the Deck first — there is nothing to inject yet.'
+        : 'You will still approve at the vault broker.'}</span></div>
     <pre id="v-use-result" class="hidden"></pre></div>`;
 }
 
@@ -472,6 +610,12 @@ function bindThemes() {
 }
 function bindContent() {
   bindContentBase();
+  const rawBtn = $('[data-raw-toggle]');
+  if (rawBtn) rawBtn.onclick = () => {
+    const pre = $('.raw-data'); if (!pre) return;
+    pre.classList.toggle('hidden');
+    rawBtn.textContent = pre.classList.contains('hidden') ? 'Show raw data' : 'Hide raw data';
+  };
   if (view === 'themes') bindThemes();
   if (view === 'hermes') bindHermes();
   if (view === 'self-test') bindSelfTest();
@@ -584,12 +728,14 @@ async function loadHermesArea(area) {
   box.innerHTML = '<p class="muted">Loading…</p>';
   const r = await api('hermes.source', {source});
   if (!r.ok) { box.innerHTML = `<div class="card"><p>${esc(r.error || 'Unavailable')}</p>
-    <button class="btn" onclick="document.querySelector('#menu-btn').click()">Open full menu</button></div>`; return; }
-  const rows = Array.isArray(r.data) ? r.data : [r.data];
-  box.innerHTML = `<div class="card" style="grid-column:1/-1;padding:18px"><div class="row" style="justify-content:space-between">
-      <h3>${esc(area)} ${r.cached ? '<span class="muted" style="font-size:10px">(cached)</span>' : ''}</h3>
-      <button class="btn small" onclick="location.reload()">Refresh</button></div>
-      <div style="overflow:auto;margin-top:12px">${rows.map(row => `<pre style="font-size:11px;white-space:pre-wrap">${esc(JSON.stringify(row, null, 2))}</pre>`).join('')}</div></div>`;
+    <button class="btn" data-goto="overview">Back to overview</button></div>`; bindContent(); return; }
+  box.innerHTML = dataView(r.data, source, r.cached);
+  const rawBtn = $('[data-raw-toggle]');
+  if (rawBtn) rawBtn.onclick = () => {
+    const pre = $('.raw-data'); if (!pre) return;
+    pre.classList.toggle('hidden');
+    rawBtn.textContent = pre.classList.contains('hidden') ? 'Show raw data' : 'Hide raw data';
+  };
 }
 function bindHermes() {
   $$('.view-tab[data-area]').forEach(b => b.onclick = async () => {
@@ -881,6 +1027,6 @@ $('#chat-input').onkeydown = e => {
   setInterval(async () => {
     if ($('#setup-screen').classList.contains('hidden')
         && $('#chat').classList.contains('hidden') && $('#drawer').classList.contains('hidden')
-        && !$('#app').classList.contains('hidden')) await bootstrap();
+        && !$('#app').classList.contains('hidden') && !hasUnsavedInput()) await bootstrap();
   }, 10000);
 })();

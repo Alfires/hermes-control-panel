@@ -38,6 +38,17 @@ input,textarea,select{background:#fff; border:1px solid var(--line); border-radi
 input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0 0 0 4px rgba(237,141,48,.13)}
 .err{color:var(--bad); font-size:12px; min-height:16px}
 
+/* owner attention strip on the overview */
+.attention{border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:14px;
+  background:var(--surface); box-shadow:var(--dash-shadow); padding:14px 18px; margin-bottom:20px}
+.attention-title{font-size:10px; font-weight:850; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:8px}
+.attention-row{display:flex; align-items:center; gap:11px; padding:5px 0; font-size:13px; color:var(--ink)}
+.attention-row .btn{margin-left:auto}
+.attention-dot{width:9px; height:9px; border-radius:50%; flex:none}
+.attention-dot.warn{background:var(--accent)}
+.attention-dot.bad{background:var(--bad)}
+
 /* shell */
 .app{height:100vh; display:grid; grid-template-columns:248px 1fr}
 .sidebar{background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column;
@@ -55,6 +66,19 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .nav-item .ico{width:20px; text-align:center; font-size:16px; color:var(--accent-dark)}
 .nav-badge{margin-left:auto; background:var(--accent); color:#fff; border-radius:99px;
   font-size:10px; font-weight:800; padding:2px 7px}
+/* grouped + searchable navigation: 32 registered pages must stay browsable */
+.nav-filter{display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line);
+  border-radius:10px; padding:7px 10px; color:var(--muted); font-size:13px; margin-bottom:6px}
+.nav-filter:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+.nav-filter input{border:0; background:none; outline:none; width:100%; color:var(--ink); font-size:12px; font-weight:600}
+.nav-group{display:grid; gap:3px}
+.nav-group-head{display:flex; justify-content:space-between; align-items:center; width:100%; border:0;
+  background:none; cursor:pointer; padding:10px 10px 5px; color:var(--muted); font-size:10px;
+  font-weight:800; letter-spacing:.11em; text-transform:uppercase}
+.nav-group-head:hover{color:var(--accent-dark)}
+.nav-group-head .caret{font-size:11px}
+.nav-group-items{display:grid; gap:3px}
+.nav-item .nav-label{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .sidebar-foot{margin-top:auto; display:flex; align-items:center; gap:8px; border-top:1px solid var(--line); padding-top:14px}
 .owner-chip{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); flex:1; font-weight:600}
 .dot{width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 4px rgba(47,157,107,.15)}
@@ -288,6 +312,11 @@ html[data-theme="mono"]{ color-scheme:light;
   display:grid; gap:8px; box-shadow:var(--dash-shadow)}
 .hermes-tile h3{color:var(--ink)}
 .hermes-tile .meta{font-size:11px; color:var(--muted)}
+/* curated source views: readable rows, raw payload hidden until asked for */
+.data-row{border-bottom:1px solid var(--line); padding:9px 2px; font-family:var(--mono, ui-monospace, monospace);
+  font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--ink)}
+.raw-data{background:var(--subtle); border:1px solid var(--line); border-radius:10px; padding:12px;
+  margin-top:14px; max-height:360px; overflow:auto; font-size:11px; white-space:pre-wrap; color:var(--muted)}
 .theme-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px}
 .theme-card{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--surface);
   cursor:pointer; transition:.18s}

@@ -85,6 +85,9 @@ switch ($action) {
                                    FROM agent_sessions s JOIN agents a ON a.id=s.agent_id
                                    ORDER BY s.updated_at DESC LIMIT 100'),
             'approvals' => DB::all("SELECT * FROM approvals WHERE status='pending' ORDER BY id DESC"),
+            // "Recorded actions" must show decided approvals too. S.approvals is
+            // deliberately pending-only for the escalation section.
+            'approval_history' => DB::all('SELECT * FROM approvals ORDER BY id DESC LIMIT 200'),
             'escalations' => DB::all("SELECT e.*,a.name AS agent_name FROM escalations e
                                       JOIN agents a ON a.id=e.agent_id
                                       WHERE e.status IN ('pending','approved') ORDER BY e.id DESC"),
