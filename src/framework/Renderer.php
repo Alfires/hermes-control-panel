@@ -22,12 +22,26 @@ final class Renderer {
             'cache' => false,
             'strict_variables' => false,
         ]);
+        // Twig's `replace` filter is a mapping replacement, not preg_replace;
+        // give templates an explicit, deterministic field-name slugger.
+        $this->twig->addFilter(new \Twig\TwigFilter('slug', static function (mixed $value): string {
+            $slug = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $value) ?? '';
+            return $slug === '' ? 'field' : substr($slug, 0, 64);
+        }));
     }
 
-    /** Render a registered page. Unknown pages get an honest "not registered" view. */
+    /** Render a registered page. Unknown pages get an honest "not registered" view.
+     *  A validated manifest in `$config['manifests'][$pageId]` takes priority;
+     *  otherwise the ordinary page registry/config array is used (unchanged). */
     public function page(string $pageId, array $config = [], array $data = []): string {
         $page = null;
-        foreach (($config['pages'] ?? []) as $candidate) {
+        if (!empty($config['manifests'][$pageId])) {
+            $manifest = PageManifests::validate($config['manifests'][$pageId]);
+            if ($manifest !== null && $manifest['id'] === $pageId) {
+                $page = PageManifests::toPage($manifest);
+            }
+        }
+        foreach (($page === null ? ($config['pages'] ?? []) : []) as $candidate) {
             if (($candidate['id'] ?? null) === $pageId) { $page = $candidate; break; }
         }
         if ($page === null) $page = \PageRegistry::builtin()[$pageId] ?? null;
@@ -60,6 +74,14 @@ final class Renderer {
             'blocks' => $blocks,
             'theme' => $config['theme'] ?? [],
         ]);
+    }
+
+    /** Render the full page shell directly from a manifest (AI preview path).
+     *  Invalid input falls back to the honest "not registered" view. */
+    public function manifest(array $manifest, array $data = []): string {
+        $clean = PageManifests::validate($manifest);
+        if ($clean === null) return $this->page('manifest-not-valid');
+        return $this->page($clean['id'], ['manifests' => [$clean['id'] => $clean]], $data);
     }
 
     /** Render one block directly; used by the AI preview/diff endpoint. */

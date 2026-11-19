@@ -1,0 +1,37 @@
+{
+  "id": "overview",
+  "version": 2,
+  "title": "Overview",
+  "icon": "◈",
+  "route": "/",
+  "blocks": [
+    {
+      "instance": "overview-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Your AI team, one deck.",
+        "subtitle": "Live status, pending approvals and the work in flight — all in one place.",
+        "action": "Open approvals"
+      }
+    },
+    {
+      "instance": "overview-kpi",
+      "type": "kpi",
+      "source": "hermes.analytics",
+      "props": {
+        "title": "At a glance",
+        "metrics": ["agents", "sessions", "approvals", "findings"]
+      }
+    },
+    {
+      "instance": "overview-status",
+      "type": "statusStrip",
+      "source": "hermes.status",
+      "props": {
+        "title": "Deck health",
+        "items": ["status", "version", "uptime"]
+      }
+    }
+  ]
+}

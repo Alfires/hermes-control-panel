@@ -25,12 +25,27 @@ vendor/                               committed autoloader + packages
 src/framework/Kernel.php              Slim app; one route per registered page
 src/framework/Renderer.php            config + registry -> Twig HTML
 src/framework/BlockCatalog.php        block allowlist and typed prop schemas
+src/framework/PageManifests.php       strict, AI-editable page manifest loader
+src/framework/manifests/*.json        shipped declarative manifests (one per page)
 src/framework/templates/layout.twig   shell used by framework-rendered pages
 src/framework/templates/blocks/*.twig one template per allowed block kind
 src/public/deck.php                   owner-only preview endpoint using the kernel
+src/public/ui-pages.php               ui.page.* proposal/preview/approve/rollback API
 tools/vendor-refresh.sh               reproduce the committed vendor directory
 tests/unit/framework-render.php       render, escape, drop-unknown and route tests
+tests/unit/ui-pages.php               manifest validation + approval-gated mutation tests
 ```
+
+## Declarative page manifests and AI edits
+
+`PageManifests.php` loads one JSON manifest per registered page from
+`src/framework/manifests/`, validates it against the block allowlist and typed
+props, and **drops** unknown block types or non-curated sources. A manifest can
+carry no code, raw CSS, dynamic imports or credential-shaped strings. The
+`ui.page.*` action family lets the owner preview a proposed manifest (rendered
+HTML + structured diff) and, with an approved escalation, propose → approve →
+rollback through the same hash-chained config revisions as `ui.config.*`.
+Every write consumes a one-shot escalation grant; reads are harmless.
 
 ## Adding a page (data, not code)
 
@@ -60,7 +75,7 @@ tests/unit/framework-render.php       render, escape, drop-unknown and route tes
 ## Verify
 
 ```bash
-php tests/suite.php                 # 831 cases, including framework tests
+php tests/suite.php                 # 924 cases, including framework + manifest tests
 bash tools/vendor-refresh.sh        # only when intentionally upgrading pins
 curl -b cookies -u ... /deck.php    # owner-only preview (local browser also works)
 ```

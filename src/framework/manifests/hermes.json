@@ -1,0 +1,46 @@
+{
+  "id": "hermes",
+  "version": 2,
+  "title": "Hermes",
+  "icon": "▦",
+  "route": "/hermes",
+  "blocks": [
+    {
+      "instance": "hermes-hero",
+      "type": "hero",
+      "source": "hermes.gateway.capabilities",
+      "props": {
+        "title": "Hermes workspace",
+        "subtitle": "Curated capabilities only — no raw endpoints and no credential routes.",
+        "action": "Refresh"
+      }
+    },
+    {
+      "instance": "hermes-status",
+      "type": "statusStrip",
+      "source": "hermes.status",
+      "props": {
+        "title": "Gateway",
+        "items": ["status", "version", "capabilities"]
+      }
+    },
+    {
+      "instance": "hermes-cards",
+      "type": "cardGrid",
+      "source": "hermes.skills.list",
+      "props": {
+        "title": "Skills",
+        "cards": ["id", "name", "description"]
+      }
+    },
+    {
+      "instance": "hermes-timeline",
+      "type": "timeline",
+      "source": "hermes.cron.jobs",
+      "props": {
+        "title": "Scheduled work",
+        "events": ["name", "schedule", "enabled"]
+      }
+    }
+  ]
+}

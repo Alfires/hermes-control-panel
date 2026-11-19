@@ -1,0 +1,34 @@
+{
+  "id": "settings",
+  "version": 1,
+  "title": "Settings",
+  "icon": "⚙",
+  "route": "/settings",
+  "blocks": [
+    {
+      "instance": "settings-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Deck settings",
+        "subtitle": "Every change is proposed first, then approved by you.",
+        "action": "Save changes"
+      }
+    },
+    {
+      "instance": "settings-form",
+      "type": "form",
+      "source": "hermes.config.schema",
+      "props": {
+        "title": "Configuration fields",
+        "fields": ["version", "fields"]
+      }
+    },
+    {
+      "instance": "settings-status",
+      "type": "statusStrip",
+      "source": "panel.bootstrap",
+      "props": { "title": "Governance", "items": ["revision", "schema_version"] }
+    }
+  ]
+}

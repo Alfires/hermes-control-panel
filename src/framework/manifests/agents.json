@@ -1,0 +1,38 @@
+{
+  "id": "agents",
+  "version": 2,
+  "title": "Agents",
+  "icon": "◆",
+  "route": "/agents",
+  "blocks": [
+    {
+      "instance": "agents-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Your agents",
+        "subtitle": "Each agent has only the tools you granted it.",
+        "action": "Add agent"
+      }
+    },
+    {
+      "instance": "agents-cards",
+      "type": "cardGrid",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Team",
+        "cards": ["system", "webui", "chat", "security"]
+      }
+    },
+    {
+      "instance": "agents-table",
+      "type": "table",
+      "source": "hermes.tools.toolsets",
+      "props": {
+        "title": "Toolsets",
+        "columns": ["id", "name", "description"],
+        "rows": [["id", "name", "description"]]
+      }
+    }
+  ]
+}

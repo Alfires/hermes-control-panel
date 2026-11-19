@@ -1,0 +1,35 @@
+{
+  "id": "security",
+  "version": 1,
+  "title": "Security",
+  "icon": "⚑",
+  "route": "/security",
+  "blocks": [
+    {
+      "instance": "security-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Exploit watch",
+        "subtitle": "Open findings and the last scan. Fixes are proposed, never applied silently.",
+        "action": "Run scan"
+      }
+    },
+    {
+      "instance": "security-table",
+      "type": "table",
+      "source": "hermes.logs",
+      "props": {
+        "title": "Recent findings",
+        "columns": ["severity", "title", "status"],
+        "rows": [["severity", "title", "status"]]
+      }
+    },
+    {
+      "instance": "security-status",
+      "type": "statusStrip",
+      "source": "hermes.status",
+      "props": { "title": "Scanner", "items": ["status", "uptime"] }
+    }
+  ]
+}

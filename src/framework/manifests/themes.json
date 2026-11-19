@@ -1,0 +1,28 @@
+{
+  "id": "themes",
+  "version": 1,
+  "title": "Themes",
+  "icon": "◐",
+  "route": "/themes",
+  "blocks": [
+    {
+      "instance": "themes-hero",
+      "type": "hero",
+      "source": "hermes.themes",
+      "props": {
+        "title": "Themes",
+        "subtitle": "Switch presets with a single owner-approved proposal.",
+        "action": "Apply preset"
+      }
+    },
+    {
+      "instance": "themes-gallery",
+      "type": "themeGallery",
+      "source": "hermes.themes",
+      "props": {
+        "title": "Available presets",
+        "presets": ["id", "name"]
+      }
+    }
+  ]
+}

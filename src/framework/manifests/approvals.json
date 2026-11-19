@@ -1,0 +1,35 @@
+{
+  "id": "approvals",
+  "version": 2,
+  "title": "Approvals",
+  "icon": "✓",
+  "route": "/approvals",
+  "blocks": [
+    {
+      "instance": "approvals-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "One-time approvals",
+        "subtitle": "Each grant expires after a single use. Deny anything you did not expect.",
+        "action": "Review queue"
+      }
+    },
+    {
+      "instance": "approvals-table",
+      "type": "table",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Pending decisions",
+        "columns": ["id", "agent", "capability", "reason"],
+        "rows": [["id", "agent_name", "capability", "reason"]]
+      }
+    },
+    {
+      "instance": "approvals-audit",
+      "type": "auditView",
+      "source": "panel.bootstrap",
+      "props": { "title": "Decision history", "limit": 50 }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "chats",
+  "version": 2,
+  "title": "Chats",
+  "icon": "✎",
+  "route": "/chats",
+  "blocks": [
+    {
+      "instance": "chats-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Conversations",
+        "subtitle": "Talk to an agent, keep the thread, hand off when it needs approval.",
+        "action": "New session"
+      }
+    },
+    {
+      "instance": "chats-list",
+      "type": "chat",
+      "source": "hermes.sessions.list",
+      "props": { "title": "Recent sessions", "agent": "chat" }
+    },
+    {
+      "instance": "chats-timeline",
+      "type": "timeline",
+      "source": "hermes.sessions.list",
+      "props": {
+        "title": "Activity",
+        "events": ["created_at", "updated_at", "title"]
+      }
+    }
+  ]
+}

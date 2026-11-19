@@ -1,0 +1,28 @@
+{
+  "id": "setup",
+  "version": 1,
+  "title": "Setup",
+  "icon": "⚒",
+  "route": "/setup",
+  "blocks": [
+    {
+      "instance": "setup-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "First-run setup",
+        "subtitle": "Finish the owner account and the local services.",
+        "action": "Complete setup"
+      }
+    },
+    {
+      "instance": "setup-form",
+      "type": "form",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Requirements",
+        "fields": ["requirements", "status"]
+      }
+    }
+  ]
+}

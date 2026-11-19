@@ -1,0 +1,37 @@
+{
+  "id": "vault",
+  "version": 2,
+  "title": "Vault",
+  "icon": "⚿",
+  "route": "/vault",
+  "blocks": [
+    {
+      "instance": "vault-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Secret names, never values",
+        "subtitle": "The broker hands out credentials only for an approved, single use. This page lists names and policies.",
+        "action": "Test a secret"
+      }
+    },
+    {
+      "instance": "vault-cards",
+      "type": "cardGrid",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Available secrets",
+        "cards": ["names only", "policy only", "owner approval required"]
+      }
+    },
+    {
+      "instance": "vault-status",
+      "type": "statusStrip",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Broker",
+        "items": ["available", "policy", "no value reads"]
+      }
+    }
+  ]
+}

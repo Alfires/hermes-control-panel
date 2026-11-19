@@ -1,0 +1,25 @@
+{
+  "id": "search",
+  "version": 1,
+  "title": "Search",
+  "icon": "⌕",
+  "route": "/search",
+  "blocks": [
+    {
+      "instance": "search-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Search the deck",
+        "subtitle": "Find an agent, a session or a finding without leaving the page.",
+        "action": "Search"
+      }
+    },
+    {
+      "instance": "search-results",
+      "type": "searchResults",
+      "source": "panel.bootstrap",
+      "props": { "title": "Results", "query": "" }
+    }
+  ]
+}

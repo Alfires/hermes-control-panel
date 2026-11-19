@@ -1,0 +1,31 @@
+{
+  "id": "self-test",
+  "version": 1,
+  "title": "Self Test",
+  "icon": "✦",
+  "route": "/self-test",
+  "blocks": [
+    {
+      "instance": "selftest-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Self test",
+        "subtitle": "A real check of every view, recorded in the audit trail.",
+        "action": "Run self-test"
+      }
+    },
+    {
+      "instance": "selftest-status",
+      "type": "statusStrip",
+      "source": "hermes.analytics",
+      "props": { "title": "Last run", "items": ["requests", "tokens", "errors"] }
+    },
+    {
+      "instance": "selftest-timeline",
+      "type": "timeline",
+      "source": "panel.bootstrap",
+      "props": { "title": "Runs", "events": ["status", "created_at"] }
+    }
+  ]
+}

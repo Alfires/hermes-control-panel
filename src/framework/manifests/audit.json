@@ -1,0 +1,25 @@
+{
+  "id": "audit",
+  "version": 1,
+  "title": "Audit",
+  "icon": "≡",
+  "route": "/audit",
+  "blocks": [
+    {
+      "instance": "audit-hero",
+      "type": "hero",
+      "source": "panel.bootstrap",
+      "props": {
+        "title": "Audit trail",
+        "subtitle": "Append-only, hash-chained. Every action has an actor and a time.",
+        "action": "Verify chain"
+      }
+    },
+    {
+      "instance": "audit-view",
+      "type": "auditView",
+      "source": "panel.bootstrap",
+      "props": { "title": "Recent activity", "limit": 100 }
+    }
+  ]
+}
