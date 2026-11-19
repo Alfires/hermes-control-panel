@@ -157,6 +157,28 @@ escalations row: status=pending, uses_left=1
 
 `Util::scrubDeep()` applies it recursively. It is applied before persistence (`DB::audit()`, notes, messages, search docs), before caching (`Hermes::fetch()`), before returning model/tool text (`Engine`), and on all broker replies (`HostCtl::scrub()`, `Vault::scrubTree()`). The policy is deliberately aggressive: a false-positive redaction is preferred to a leaked credential. `panel.redaction.probe` verifies the placeholder is censored on a live deployment.
 
+### 7a. Value-based redaction — "the AI can use a secret but cannot print it"
+
+Pattern matching alone is not enough: a helper might print the raw value with no
+credential-shaped key next to it. The root-owned vault broker (`/home/deck/vault/
+broker.py`) therefore also redacts by **actual value** on every exit path of
+`op_use`: `redact(text, secret)` replaces, with `***`, the raw secret, its base64
+encoding and its URL-encoded form. `do_file()` never returns the written content
+at all (only `bytes` and `used_secret`). So even a prompt-injected "print the
+variable" attempt reaches the model as `***`.
+
+Proof, not promise: `tests/leak-probe.sh` (run as root on the Deck) stores a real
+synthetic secret, uses it through `vault.test` against an echo endpoint that
+returns the value raw, base64, URL-encoded, nested and inside an error string,
+and fails if **any** of those forms survive the reply. `tests/unit/
+vault-noleak-contract.php` keeps the list/use-only, no-`get` and double-scrub
+contracts in the local suite.
+
+Limits (honest): redaction covers the raw value plus base64/URL forms; exotic
+encodings (hex, split-across-fields) are not transformed. The primary defence is
+that the value is never returned to the agent in the first place — only the one
+broker-registered action ever holds it.
+
 ---
 
 ## 8. HTTP guards: same-origin + CSRF

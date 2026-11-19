@@ -48,13 +48,16 @@ profiles, and Linux AppImage/deb/rpm, macOS DMG/zip and Windows MSIX packaging.
 
 Still to integrate (tracked in `docs/ROADMAP.md`):
 
-1. A Deck login bridge: the app must exchange your panel login for a short-lived
-   Hermes gateway token (the stock app expects a gateway token or OAuth).
+1. Direct connection setup — see [CONNECTION.md](CONNECTION.md). The app talks
+   **straight to the Hermes gateway**; the PHP panel is a control plane, not a
+   chat relay. The gateway URL and a short-lived token are entered in the app and
+   held by Electron `safeStorage`.
 2. A branded icon set and updater feed under our control.
 3. The right-side chat popup and in-chat microphone from the web UI need to be
    carried into the renderer (upstream already docks preview panes on the right).
-4. Build and smoke-test on Linux, macOS and Windows. Only the patch-application
-   check runs in CI today; no packaged binary is claimed as verified yet.
+4. Build and smoke-test on target, in order: Linux, then macOS, then Windows.
+   Only the patch-application check runs here today; no packaged binary is
+   claimed as verified yet.
 
 ## Why this shape
 

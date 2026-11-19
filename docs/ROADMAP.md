@@ -13,6 +13,8 @@ each piece exists, what is real now, and what "done" means._
 | Users | **One user — you.** No multi-user accounts now. | You answered “one user, just me, but a big redesign”. We still keep identity and project ownership in separate code so this is not painted into a corner. |
 | Desktop | **Build on the real Hermes Desktop source** (Electron + React, MIT), pinned commit `7c7daa25c66262d504e3c2b29ade0ed5928b056e`. | You chose parity with Hermes over a hand-written shell. We inherit its chat, native panes, voice, projects and packaging. |
 | Desktop mode | **Remote-only “light” variant** pointed at your server. | Your one Hermes gateway is the real service. The app must not start a second local agent. |
+| Client ↔ server | **No server between the client and Hermes.** The desktop app and the web UI are two clients of the same Hermes API/instances; the PHP panel is the control plane for login, approvals, vault, git and settings — it is **not** a chat relay. | Your words: “you can directly communicate with my Hermes ... the website should just be a different client”. Chat, streaming and tool calls go straight to Hermes; the panel never proxies a conversation. |
+| Vault for agents | An agent may **use** a real credential by logical name + `{{secret}}` placeholder; it can never read or print the value. The root broker replaces the raw, base64 and URL-encoded forms with `***` on every exit path, and `tests/leak-probe.sh` proves it against a real secret. | Your words: “give the AI access to my vault with security ... only put in the placeholders ... no password leak through a print of the var”. |
 | Framework language | **PHP framework + JavaScript libraries. No TypeScript added by us, no compile step for our code.** | You answered “PHP, you can use JS libraries”. Keeps the panel editable on the Deck without npm. |
 | Web UI feel | Chat docks on the **right**, fullscreen is opt-in, microphone lives **inside** the chat composer, every menu scrolls, Hermes is **one built-in area** rather than 19 sidebar sections. | Your direct UI feedback, implemented and committed as `Hermes Builder`. |
 | Projects & git | **Use the existing Forgejo server.** Every project gets a git repo, with private/main-global choice, visible version, recent changes and changed files. | You chose Forgejo. Git is the memory of work with AI. |
@@ -68,26 +70,36 @@ each piece exists, what is real now, and what "done" means._
 ## 3. Target architecture in plain language
 
 ```
-          your PC / Mac / Linux                    home server
-     ┌───────────────────────────┐          ┌──────────────────────────┐
-     │ Hermes Control Deck app   │  HTTPS   │ webui container (9120)   │
-     │ (fork of Hermes Desktop)  │ ───────▶ │ PHP framework + UI       │
-     │ chat / panes / projects   │          │ login, git UI, approvals │
-     └────────────┬──────────────┘          └───────────┬──────────────┘
-                  │ short-lived token                   │ proxied, scrubbed
-                  ▼                                     ▼
-          Hermes gateway (9119/8642)  ◀──────── one Hermes container
-          profiles = agents                         (no second gateway)
-                  │
-                  ▼
-          Forgejo: one repo per project, private or main/global, synced per device
+        your PC / Mac / Linux                browser (any device)
+     ┌───────────────────────────┐        ┌───────────────────────────┐
+     │ Hermes Control Deck app   │        │ webui SPA (PHP-served UI)  │
+     │ (fork of Hermes Desktop)  │        │ = a DIFFERENT CLIENT       │
+     └────────────┬──────────────┘        └────────────┬──────────────┘
+                  │ direct HTTPS to Hermes API          │ direct HTTPS to Hermes API
+                  │ (chat, streaming, tools)             │ (no chat relay in between)
+                  └────────────────┬──────────────────────┘
+                                   ▼
+                    Hermes gateway (9119/8642) — ONE container
+                    profiles = agents, sessions, tools
+                       │                         │
+                       ▼                         ▼
+              root vault broker            Forgejo: one repo per project,
+              (use-only, value-redacted)   private or main/global, git history
+                       ▲
+                       │ control plane only: vault CRUD, approvals,
+        PHP panel ─────┘ settings, themes, UI config, git presentation
+        (webui container, 9120) — NOT in the chat path
 ```
 
-- **Control plane** = PHP panel: identity, permissions, approvals, UI config,
-  project list and git presentation.
+- **Presentation** = two independent clients of the *same* Hermes API: the
+  desktop fork and the web SPA. Neither proxies a conversation through PHP.
 - **Execution plane** = the one Hermes gateway with profiles (your agents).
-- **Presentation** = web UI and the desktop fork, both clients of the same
-  control plane and gateway. They share sessions.
+  Chat, streaming and tool calls land here directly from either client.
+- **Control plane** = PHP panel: vault management, approvals, UI config,
+  settings and git presentation. It holds the owner login and hands clients a
+  short-lived Hermes connection; it is never in the message path.
+- **Secrets** = agents send only a logical name and `{{secret}}`; the root broker
+  injects the real value into the one action and scrubs every reply.
 - **Memory** = git in every project plus append-only panel config revisions;
   Hermes keeps its own sessions/skills/memory per profile.
 
@@ -110,35 +122,39 @@ Delivered:
 ---
 
 ### Phase 1 — Desktop app first (next work item)
-**Goal:** a real app on Linux/macOS/Windows that feels like Hermes and talks to
-your one server after login.
+**Goal:** a real app that feels like Hermes and talks **directly** to your one
+Hermes API — no server in the chat path. Prepare everything here; build on the
+target machine (your choice). Platform order: **Linux → macOS → Windows**.
 
 Work:
-1. **Login bridge.** Add a panel endpoint that exchanges an authenticated
-   panel session for a short-lived Hermes gateway token (scoped to your one
-   profile, 15-minute TTL, single use, logged). The app stores it with Electron
-   `safeStorage`, never in files we commit. (`api.php` action
-   `desktop.token`, capability `panel.desktop_token`.)
-2. **Connection preseed.** Ship `desktop/connection.json.example` through the
-   install helper with your domain filled in at install time; token is entered
-   in the app UI, never injected into a file by a script.
+1. **Direct connection setup.** `desktop/CONNECTION.md` documents how to point
+   the remote-only "light" build at your Hermes gateway URL and enter a
+   short-lived gateway token in Settings → Connections. Electron `safeStorage`
+   holds the token; nothing is written to a committed file. No PHP endpoint
+   relays chat. If a token-mint bridge is added later, it is a separate,
+   owner-approved capability — never a conversation proxy.
+2. **Connection preseed.** `desktop/connection.json.example` shows the config
+   shape with placeholders only; the domain is filled in at install time, the
+   token is typed in the app, never injected by a script.
 3. **Renderer tweaks.** Carry the right-side chat dock, in-composer mic and
    scrollable tab strips into the forked renderer. Upstream already docks
    preview panes on the right, so this is a small patch, not a new UI.
 4. **Branding.** Add our icon set to `desktop/assets`, keep the MIT attribution
    file, and disable upstream's updater feed (already in the identity patch).
-5. **Build gates.** `bootstrap.sh build` for Linux AppImage/deb, macOS
-   DMG/zip, Windows MSIX; smoke test first launch, login, one chat message,
-   voice button state, approval card, project list.
+5. **Build gates (on target).** `bootstrap.sh build` for Linux AppImage/deb
+   first, then macOS DMG/zip, then Windows MSIX. Smoke test first launch,
+   direct connection, one chat message, voice button state, approval card,
+   project list.
 
 **Acceptance criteria**
-- Login on a fresh profile works against your domain; no token in git/logs.
+- A fresh profile connects straight to the Hermes gateway; no token in git/logs;
+  no PHP request appears in the network tab while chatting.
 - Chat opens on the right; Fullscreen works; mic appears in the composer and
   is disabled until a model is installed.
 - No `hermes serve` process is started by the app on the desktop.
 - Two containers still; `hermes` continues to own 8642/9119.
-- At least Linux package built and launched in a clean profile; macOS/Windows
-  builds at least compile, with honest notes ifunsigned.
+- Linux package built and launched in a clean profile first; macOS then Windows
+  compiled and reported honestly (unsigned builds noted if needed).
 
 **Commands**
 ```bash

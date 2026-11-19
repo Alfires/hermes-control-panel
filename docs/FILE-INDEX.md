@@ -12,7 +12,9 @@ Purpose: a complete inventory of every tracked file in the main repo (`hermes-co
 `composer.lock`, `vendor/` (committed pinned Slim/Twig packages), `tools/vendor-refresh.sh`,
 `src/framework/{Kernel,Renderer,BlockCatalog}.php`, `src/framework/templates/layout.twig`,
 `src/framework/templates/blocks/*.twig`, `src/public/deck.php`, and
-`src/public/vendor/{htmx-2.0.11.min.js,alpine-3.17.5.min.js,+ licenses}`.
+`src/public/vendor/{htmx-2.0.11.min.js,alpine-3.17.5.min.js,+ licenses}`,
+`desktop/CONNECTION.md`, `tests/leak_echo_server.py`, `tests/leak-probe.sh`,
+`tests/unit/vault-noleak-contract.php`.
 
 ## 1. Build, packaging and scheduling (main repo root)
 

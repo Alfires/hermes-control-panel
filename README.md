@@ -139,7 +139,9 @@ Every part of the system is documented; start with the map and go deeper:
 | [FILE-INDEX.md](docs/FILE-INDEX.md) | Inventory of every tracked file in both repos |
 | [TODO.md](docs/TODO.md) | Canonical checklist and verification evidence |
 | [ROADMAP.md](docs/ROADMAP.md) | Complete redesign roadmap: decisions, phases, acceptance criteria, risk register |
-| [desktop/README.md](desktop/README.md) | Pinned Hermes Desktop fork: build, login bridge plan, real vs planned features |
+| [desktop/README.md](desktop/README.md) | Pinned Hermes Desktop fork: build, direct-connection plan, real vs planned features |
+| [desktop/CONNECTION.md](desktop/CONNECTION.md) | Direct client → Hermes connection, no chat relay, token in safeStorage |
+| [tests/leak-probe.sh](tests/leak-probe.sh) | Live proof that an agent cannot print a vault secret (raw/base64/URL forms) |
 
 ## Repository
 

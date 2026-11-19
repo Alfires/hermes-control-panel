@@ -45,6 +45,13 @@ integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
 - [x] PHP + JS framework foundation: Slim 4, Twig 3, vendored htmx/Alpine,
       block catalog with typed props, Twig templates, `/deck.php` preview,
       framework tests (831 cases total).
+- [x] Direct-client architecture recorded: desktop + web are two clients of the
+      Hermes API, PHP panel is control plane only (`docs/ROADMAP.md`,
+      `desktop/CONNECTION.md`). Platform order Linux → macOS → Windows.
+- [x] Vault no-leak proof: `tests/leak-probe.sh` echoes a real secret back raw,
+      base64, URL-encoded, nested and as an error string and proves none survive;
+      `tests/unit/vault-noleak-contract.php` checks the list/use-only contract
+      (835 suite cases total).
 - [x] 802-case framework test suite: 782 pass + 20 opt-in live skips locally;
       802/802 with `RUN_LIVE=1` against the deployed Deck.
 - [x] Config governance, registries, renderer, themes, search, STT, setup, self-test.
