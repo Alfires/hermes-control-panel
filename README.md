@@ -137,6 +137,8 @@ Every part of the system is documented; start with the map and go deeper:
 | [DEBUGGING-REPORT.md](docs/DEBUGGING-REPORT.md) | The full deep-audit record with fixes, commits and evidence |
 | [FILE-INDEX.md](docs/FILE-INDEX.md) | Inventory of every tracked file in both repos |
 | [TODO.md](docs/TODO.md) | Canonical checklist and verification evidence |
+| [ROADMAP.md](docs/ROADMAP.md) | Complete redesign roadmap: decisions, phases, acceptance criteria, risk register |
+| [desktop/README.md](desktop/README.md) | Pinned Hermes Desktop fork: build, login bridge plan, real vs planned features |
 
 ## Repository
 

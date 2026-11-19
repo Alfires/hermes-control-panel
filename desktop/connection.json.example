@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to Electron userData/connection.json on the target machine. Do NOT commit real tokens. The Desktop stores the token with electron safeStorage when you sign in through Settings > Connections. This file shows the shape only.",
+  "mode": "remote",
+  "remote": {
+    "url": "https://hermes.example.com",
+    "authMode": "token",
+    "token": { "encoding": "safeStorage", "value": "<entered-in-the-app-not-in-git>" },
+    "headers": {}
+  }
+}

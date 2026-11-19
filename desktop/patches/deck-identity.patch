@@ -1,0 +1,58 @@
+diff -ruN a/apps/desktop/index.html b/apps/desktop/index.html
+--- a/apps/desktop/index.html	2026-11-19 20:09:18.972385224 +0100
++++ b/apps/desktop/index.html	2026-11-19 20:09:18.999540300 +0100
+@@ -8,7 +8,7 @@
+     <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png" />
+     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+     <link rel="shortcut icon" href="/apple-touch-icon.png" />
+-    <title>Hermes</title>
++    <title>Hermes Control Deck</title>
+     <script>
+       // Pre-paint the themed background before the app bundle loads. Without
+       // this, the first frame (which is what `ready-to-show` waits for) is the
+diff -ruN a/apps/desktop/product-identity.cjs b/apps/desktop/product-identity.cjs
+--- a/apps/desktop/product-identity.cjs	2026-11-19 20:09:18.971444001 +0100
++++ b/apps/desktop/product-identity.cjs	2026-11-19 20:09:18.999435619 +0100
+@@ -9,16 +9,16 @@
+ 'use strict'
+ 
+ const variants = {
+-  '': { display: 'Hermes', kebab: 'hermes', pascal: 'Hermes' },
++  '': { display: 'Hermes Control Deck', kebab: 'hermes-control-deck', pascal: 'HermesControlDeck' },
+   light: {
+-    display: 'Hermes Light',
+-    kebab: 'hermes-light',
+-    pascal: 'HermesLight'
++    display: 'Hermes Control Deck Light',
++    kebab: 'hermes-control-deck-light',
++    pascal: 'HermesControlDeckLight'
+   },
+   bundled: {
+-    display: 'Hermes Agent',
+-    kebab: 'hermes-bundled',
+-    pascal: 'HermesBundled'
++    display: 'Hermes Control Deck Agent',
++    kebab: 'hermes-control-deck-bundled',
++    pascal: 'HermesControlDeckBundled'
+   }
+ }
+ 
+@@ -66,14 +66,15 @@
+   store,
+   light,
+   displayName,
+-  appId: `com.nousresearch.${name.kebab}${kebabSuffix}`,
++  appId: `com.alfires.${name.kebab}${kebabSuffix}`,
+   // Store and commit builds do not publish a release feed.
+-  channel: store || buildCommit ? null : light ? (canary ? 'light-canary' : 'light') : (canary ? 'canary' : 'latest'),
++  // Deck fork: never consume Nous Research release feeds. Updates are ours.
++  channel: null,
+   appNamePascal: `${name.pascal}${pascalSuffix}`,
+   artifactNamePascal: name.pascal,
+   windowsExecutableName: kebabSuffix ? cliName : displayName,
+   cliName,
+-  msixAppIdWithOrg: `NousResearch.${name.pascal}${pascalSuffix}`,
++  msixAppIdWithOrg: `Alfires.${name.pascal}${pascalSuffix}`,
+   ...(store
+     ? {
+         storeMsix: {

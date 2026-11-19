@@ -14,8 +14,24 @@ change of scope leaves a version-history trail.
 
 ## Remaining build tasks
 
-- [ ] Nothing blocking. Re-run `php tests/suite.php` and the Deck integration
-      script after any future change.
+The full, ordered design is in [ROADMAP.md](ROADMAP.md). Current phase is
+**Phase 1 — Desktop app first**.
+
+- [ ] Desktop login bridge: exchange a panel session for a short-lived Hermes
+      gateway token; store it with Electron `safeStorage` only.
+- [ ] Carry the right-side chat, in-composer mic and scrollable tabs into the
+      pinned Hermes Desktop renderer.
+- [ ] Build and smoke-test at least the Linux package; honestly record macOS
+      and Windows status.
+- [ ] PHP + JS framework foundation (Slim/Twig + htmx/Alpine) and real
+      block-level config rendering, replacing hardcoded browser views.
+- [ ] Forgejo-backed project creation, visible git history/diffs, and backup tool.
+- [ ] Install a whisper.cpp model so the chat mic becomes functional.
+- [ ] Bind approval rows to actual privileged calls; deepen self-test to a real
+      browser pass; reconcile API catalogue and dead frontend variables.
+
+Verification after every change: `php tests/suite.php`, live suite, Deck
+integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
 
 ## Completed (with evidence)
 
