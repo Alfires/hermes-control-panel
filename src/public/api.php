@@ -43,12 +43,24 @@ if (!in_array($action, ['login', 'me'], true)) {
 
 switch ($action) {
     case 'login':
-        // Per-IP + per-user rate limit (10 attempts / 15 min).
+        // Per-IP + per-user rate limit (10 attempts / 15 min). The window is
+        // stored with the counter so a lockout expires instead of lasting
+        // forever (the old counter-only file never reset).
         $rateKey = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '?') . '|' . Util::str($b['username'] ?? '', 120));
         $rateFile = sys_get_temp_dir() . '/hcp-login-' . $rateKey;
-        $attempts = is_file($rateFile) ? (int) file_get_contents($rateFile) : 0;
-        if ($attempts >= 10) Util::json(['ok' => false, 'error' => 'too many attempts; try again later'], 429);
-        @file_put_contents($rateFile, $attempts + 1);
+        $window = 900;
+        $rateNow = time();
+        $rate = ['start' => $rateNow, 'count' => 0];
+        if (is_file($rateFile)) {
+            $raw = json_decode((string) file_get_contents($rateFile), true);
+            if (is_array($raw) && isset($raw['start'], $raw['count'])
+                && ($rateNow - (int) $raw['start']) < $window) {
+                $rate = ['start' => (int) $raw['start'], 'count' => (int) $raw['count']];
+            }
+        }
+        if ($rate['count'] >= 10) Util::json(['ok' => false, 'error' => 'too many attempts; try again later'], 429);
+        $rate['count']++;
+        @file_put_contents($rateFile, json_encode($rate), LOCK_EX);
         $token = Auth::login(Util::str($b['username'] ?? '', 120), (string)($b['password'] ?? ''));
         if (!$token) Util::json(['ok' => false, 'error' => 'invalid credentials'], 401);
         @unlink($rateFile);
@@ -77,6 +89,9 @@ switch ($action) {
                                       JOIN agents a ON a.id=e.agent_id
                                       WHERE e.status IN ('pending','approved') ORDER BY e.id DESC"),
             'findings' => DB::all("SELECT * FROM findings WHERE status='open' ORDER BY id DESC LIMIT 100"),
+            // The Overview "Recent activity" list and the Audit view both read
+            // S.audit; without this the two views are permanently empty.
+            'audit' => DB::all('SELECT * FROM audit ORDER BY id DESC LIMIT 200'),
             'messages' => DB::all('SELECT m.*, f.slug AS from_slug, t.slug AS to_slug FROM messages m
                                    LEFT JOIN agents f ON f.id=m.from_agent
                                    JOIN agents t ON t.id=m.to_agent ORDER BY m.id DESC LIMIT 80'),
@@ -361,6 +376,9 @@ switch ($action) {
         Util::json(['ok' => str_contains($sample, 'CENSORED'), 'sample' => $sample]);
 
     case 'setup.status':
+        // Setup::status() includes the full active UI config and environment
+        // requirements. It must not be readable by an unauthenticated caller.
+        Auth::require();
         Util::json(Setup::status());
 
     case 'setup.complete':
