@@ -15,12 +15,16 @@ ARG WHISPER_MODEL_SHA256=c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1b
 
 # ggml/CMakeLists.txt calls find_program(GIT_EXE) unconditionally, so git must
 # be installed at configure time even though we build from a tarball, not a clone.
+# BUILD_SHARED_LIBS=OFF is required: the default shared build leaves
+# whisper-server linked against libwhisper.so.1 / libggml.so, which do not
+# survive COPY into the runtime image (supervisord then reports symbol errors
+# and STT stays down). Verified with ldd on the Deck, 2026-11-19.
 RUN apk add --no-cache build-base cmake curl tar git \
  && mkdir -p /tmp/whisper-src /opt/stt/models /opt/stt/baked /opt/stt/public \
  && curl -fsSL --retry 3 "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/${WHISPER_VERSION}.tar.gz" -o /tmp/whisper-src.tar.gz \
  && echo "${WHISPER_SRC_SHA256}  /tmp/whisper-src.tar.gz" | sha256sum -c - \
  && tar xzf /tmp/whisper-src.tar.gz -C /tmp/whisper-src --strip-components=1 \
- && cmake -S /tmp/whisper-src -B /tmp/whisper-src/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=ON \
+ && cmake -S /tmp/whisper-src -B /tmp/whisper-src/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=ON -DBUILD_SHARED_LIBS=OFF \
  && cmake --build /tmp/whisper-src/build --target whisper-server quantize -j"$(nproc)" \
  && install -m 0755 /tmp/whisper-src/build/bin/whisper-server /opt/stt/whisper-server \
  && curl -fL --retry 3 "https://huggingface.co/ggerganov/whisper.cpp/resolve/${WHISPER_MODEL_REV}/ggml-small.en.bin" -o /tmp/ggml-small.en.bin \

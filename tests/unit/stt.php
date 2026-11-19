@@ -116,6 +116,14 @@ test('stt.src.build_stage_installs_git_for_ggml_cmake', static function () use (
        'build-stage apk add must include git (ggml find_program GIT_EXE)');
 });
 
+test('stt.src.build_stage_links_static_so_runtime_has_no_missing_so', static function () use ($sttDocker): void {
+    // Default shared build leaves libwhisper.so.1 / libggml.so in the build
+    // stage only; the copied whisper-server then fails to load in the runtime
+    // image. Regresses the STT-down-on-deploy failure seen on 2026-11-19.
+    contains($sttDocker, '-DBUILD_SHARED_LIBS=OFF',
+             'whisper.cpp must be linked statically before COPY to runtime');
+});
+
 test('stt.src.supervisor_guard_is_honest', static function () use ($sttSupervisor, $sttModel): void {
     contains($sttSupervisor, '[program:stt]');
     contains($sttSupervisor, '[ -x /opt/stt/whisper-server ]', 'binary guard');
