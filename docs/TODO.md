@@ -15,22 +15,45 @@ change of scope leaves a version-history trail.
 ## Remaining build tasks
 
 The full, ordered design is in [ROADMAP.md](ROADMAP.md). Current phase is
-**Phase 1 — Desktop app first**.
+**Phase 1 — Desktop app first** (web control-plane phases 2–6 implemented in
+code; live-target verification still pending for several items).
 
 - [ ] Desktop login bridge: exchange a panel session for a short-lived Hermes
-      gateway token; store it with Electron `safeStorage` only.
+      gateway token; store it with Electron `safeStorage` only. The security
+      design and invariants are recorded in `docs/DESKTOP-PLATFORMS.md`; the
+      panel actions, grant table and Electron IPC are **not implemented**.
+- [ ] Live-token connection proof on the built desktop app: a real gateway
+      token in `safeStorage`, one chat message, approval card, project list,
+      and proof that no PHP request appears in the chat path.
+- [ ] macOS DMG/zip and Windows MSIX: cross-builds are impossible from Linux
+      (macOS needs `actool`/`codesign`; Windows HUD helper requires a Windows
+      host). `bash desktop/bootstrap.sh platforms` prints the honest matrix.
+- [ ] rpm packaging: needs host `rpmbuild`; no non-interactive install path is
+      available. AppImage + deb are the supported Linux artifacts.
 - [x] Renderer decision from the real build: no patch needed — pinned upstream
       already has a right sidebar, composer voice controls and layout/HUD
       controls (`docs/DESKTOP-SMOKE-LINUX.md`). Web keeps its docked popup.
 - [x] Linux build + smoke test: unpacked app, AppImage and deb built; AppImage
       launched headless with correct identity (`docs/DESKTOP-SMOKE-LINUX.md`).
-      Remaining: rpm needs host `rpmbuild`; macOS/Windows not built yet.
-- [ ] PHP + JS framework foundation (Slim/Twig + htmx/Alpine) and real
-      block-level config rendering, replacing hardcoded browser views.
-- [ ] Forgejo-backed project creation, visible git history/diffs, and backup tool.
-- [ ] Install a whisper.cpp model so the chat mic becomes functional.
-- [ ] Bind approval rows to actual privileged calls; deepen self-test to a real
-      browser pass; reconcile API catalogue and dead frontend variables.
+- [x] Declarative page manifests + AI-editable UI: `src/framework/PageManifests.php`,
+      13 shipped manifests, strict block/source allowlist, and `ui.page.*`
+      actions with approval-bound propose/preview/diff/approve/rollback/history
+      through the hash-chained config revisions (`src/public/ui-pages.php`).
+- [x] Forgejo-backed projects: `project.*` actions, curated git status/log/diff,
+      owner field, vault-only token use, and a restorable `tools/backup.sh`.
+      Live Forgejo token and private-repo clone remain unverified on target.
+- [x] Local STT: whisper.cpp `v1.7.6` + sha256-verified model baked into the
+      image at build time (`Dockerfile`, `supervisord.conf`, `docs/STT.md`).
+      Requires an image rebuild + redeploy before the Deck reports it available.
+- [x] Approval binding for page edits: every `ui.page.*` mutation requires an
+      approved, unconsumed, unexpired escalation with an edit capability.
+      `host_apply`/`webui_edit` rows remain advisory for their own tools.
+- [x] Real browser self-test: `tools/selftest-browser.sh` + `deck-browser-selftest`
+      walks every registered page in a headless browser with OCR assertions
+      and honest SKIPPED reporting (`docs/SELFTEST-BROWSER.md`).
+- [x] API catalogue reconciled (52 actions, catalogue === api.php switch),
+      HTTP verbs now enforced from the catalogue, dead `window.HCP_*` globals
+      removed, and curated critical-package rules installed instead of `{}`.
 
 Verification after every change: `php tests/suite.php`, live suite, Deck
 integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
@@ -108,28 +131,31 @@ integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
 These are recorded here rather than papered over. The roadmap's *feature
 surface* is implemented, but the following plan items are partial:
 
-- [ ] **Config-driven UI is partial.** `config/site.json` controls nav, themes
-      and feature flags, but the browser views are hardcoded in `app.js`.
-      The planned `src/lib/blocks/*.php` renderers and `src/templates/**`
-      do not exist; `Render::page()` is used only as a self-test length check.
-      An AI can re-compose navigation and tokens, not arbitrary blocks.
-- [ ] **Local STT is wired but not functional.** The loopback proxy, mic UI and
-      capability detection exist, but no whisper.cpp model is installed in the
-      deployed image, so the Voice page correctly reports "engine not installed".
-- [ ] **Three Hermes pages are honest stubs.** `hermes-pairing`,
+- [ ] **Production SPA views are still hardcoded in `app.js`.** The framework
+      (`src/framework/**`, 13 manifests, Twig blocks) can render every registered
+      page declaratively and `/deck.php` proves it, but the live shell at
+      `index.php` has not been migrated block-by-block yet. `ui.page.*` can
+      propose/preview/diff/approve manifests today; switching the production
+      render path is the remaining step.
+- [ ] **Local STT needs a rebuild + deploy on target.** The engine and model are
+      baked into the image in source, but the currently deployed container has
+      no model, so `stt.status` still reports the engine unavailable until the
+      new image is built and the container recreated.
+- [ ] **Three Hermes pages remain honest stubs.** `hermes-pairing`,
       `hermes-docs` and `hermes-chat` explain where the capability lives and
       link elsewhere; they have no dedicated safe data source.
 - [ ] **Approvals are advisory for two tools.** `host_apply` and `webui_edit`
       record approval rows but enforcement is the escalation/HMAC path, not
-      the approvals table itself. `escalations.token_hash` is written, not read.
-- [ ] **Self-test is shallow.** It checks rendered markup length and source
-      registration, not the real browser UI; browser verification is a
-      separate manual/toolbox procedure.
-- [ ] **No backup tooling is shipped.** `OPERATIONS.md` documents a manual
-      backup of the `/var/lib/panel` volume instead.
-- [ ] **Curated critical-package rules are empty** (`{}` by default), and the
-      action catalogue's `method` field is decorative — the API accepts either
-      HTTP verb.
-- [ ] **Dead frontend variables remain.** `window.HCP_CONFIG` is injected but
-      unused, and `window.HCP_THEME_PRESETS` is read but never defined (the
-      code falls back to `S.theme_presets`).
+      the approvals table itself. `escalations.token_hash` is written, not read;
+      the raw token is never returned by `RBAC::decide()`, so page-edit grants
+      are authorised by approved id + unconsumed + unexpired + capability.
+- [ ] **Live-target proof still pending.** No real Forgejo token, private-repo
+      clone, desktop gateway token, browser mic capture, or macOS/Windows build
+      has been exercised on the target machine; those are documented honestly
+      in `docs/DESKTOP-PLATFORMS.md`, `docs/STT.md` and `docs/SELFTEST-BROWSER.md`.
+- [x] **Backup tooling shipped** (`tools/backup.sh`: tar.gz + --verify, no
+      secrets/.env; restore tested locally).
+- [x] **Curated critical-package rules installed** in the root-only broker file
+      by both installers instead of `{}`.
+- [x] **Action catalogue enforced** and dead `window.HCP_*` globals removed
+      (the code falls back to `S.theme_presets` for theme presets).

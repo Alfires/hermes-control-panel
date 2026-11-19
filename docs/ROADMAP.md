@@ -45,23 +45,29 @@ each piece exists, what is real now, and what "done" means._
   (product name, app IDs, update channel disabled), idempotent build script,
   safe connection template, and tests. Verified: patch applies cleanly to the
   pinned upstream; `desktop/bootstrap.sh check` passes.
-- Tests: local suite **826 registered / 806 passed / 0 failed / 20 skipped**;
+- Tests: local suite **924 registered / 904 passed / 0 failed / 20 skipped**;
   earlier full live run **820/820** and Deck integration **16/16**. Any new
   phase must keep these green.
 
 ### Honest gaps (carried from `docs/TODO.md`)
-- The AI-editable UI is still mostly proposal/approval over config JSON; PHP
-  `Render::page()` is not yet the source of the browser views. Real block-level
-  rendering is Phase 3 below.
-- STT is wired to loopback whisper.cpp but no model is installed in the image,
-  so the mic button is correctly disabled until one is added (Phase 5).
+- The production browser shell (`index.php` + `app.js`) is still hardcoded even
+  though the framework can now render every registered page declaratively from
+  a manifest (`src/framework/PageManifests.php`, `/deck.php`). Migrating the
+  live render path block-by-block is the remaining Phase 3 step.
+- STT engine + model are baked into the image in source but the deployed
+  container has not been rebuilt, so `stt.status` still reports unavailable on
+  the Deck until that rebuild happens (Phase 5).
 - `hermes-pairing`, `hermes-docs`, `hermes-chat` are honest stubs with no safe
   dedicated data source.
 - `host_apply`/`webui_edit` approval rows are advisory; enforcement is the
-  broker action/HMAC allowlist, not those rows. Binding them is Phase 5.
-- Self-test checks markup/source registration, not real browser pixels.
-- No shipped backup tool; no critical-package rules in the default config.
-- Four API actions are implemented but absent from the public action catalogue.
+  broker action/HMAC allowlist, not those rows. Page-edit (`ui.page.*`) mutations
+  are now bound to approved escalations (Phase 5).
+- PHP self-test checks markup/source registration; the new browser self-test
+  (`tools/selftest-browser.sh`) adds a real headless pass over every page.
+- Backup tooling (`tools/backup.sh`) is shipped; curated critical-package rules
+  are installed by both installers instead of `{}`.
+- The action catalogue was reconciled with `api.php` (52 actions) and its HTTP
+  verbs are now enforced; dead `window.HCP_*` globals were removed.
 - The Linux desktop app is built and smoke-tested
   (`docs/DESKTOP-SMOKE-LINUX.md`): first launch, setup skip, main chat surface,
   composer voice controls, right sidebar, runtime identity. AppImage and deb are
@@ -317,14 +323,16 @@ Work:
   `DATA-MODEL.md`, `SECURITY.md`, `DEPLOYMENT.md`, `OPERATIONS.md`, `TESTING.md`,
   `TROUBLESHOOTING.md`, `DEBUGGING-REPORT.md`, `FILE-INDEX.md`, `TODO.md`,
   `ROADMAP.md` and the new `desktop/README.md` current with each phase.
-- Reconcile the action catalogue (35 entries) with `api.php` (39 actions):
-  add `layout.save`, `agent.message`, `panel.host.probe`,
-  `panel.redaction.probe` or remove them from the switch.
-- Fix dead frontend variables (`window.HCP_CONFIG` unused,
-  `window.HCP_THEME_PRESETS` read but never defined) and default critical
-  package rules to a reviewed set instead of `{}`.
-- Update `panel-browser-verify`’s live count (802 → actual) and add a browser
-  pass for the dock/fullscreen/mic controls.
+- ~~Reconcile the action catalogue (35 entries) with `api.php` (39 actions)~~
+  **Done**: catalogue and switch both have 52 actions and are checked equal by
+  `tests/unit/hygiene.php`; the declared verbs are now enforced (405 on mismatch).
+- ~~Fix dead frontend variables~~ **Done**: no `window.HCP_*` globals remain;
+  presets come from bootstrap `S.theme_presets`. ~~Default critical package
+  rules~~ **Done**: both installers write a reviewed 11-package floor into the
+  root-only broker rules file (never `{}`) and preserve owner edits.
+- ~~Update `panel-browser-verify`’s live count~~ **Done**: 835 live count and a
+  dedicated dock/fullscreen/mic pass; plus a new `deck-browser-selftest` tool
+  that walks every page in a real headless browser (`docs/SELFTEST-BROWSER.md`).
 - Every phase ends with: local suite → live suite → Deck integration → push to
   Forgejo → `deploy/install.sh` → GitHub mirror → docs update. Never deploy
   before the Forgejo push.

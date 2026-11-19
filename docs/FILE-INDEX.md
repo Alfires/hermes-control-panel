@@ -6,6 +6,13 @@ Purpose: a complete inventory of every tracked file in the main repo (`hermes-co
 
 ## Files added after that verification (not line-counted here)
 
+The Phase 2–6 pass added: `src/framework/PageManifests.php`,
+`src/framework/manifests/*.json` (13 page manifests), `src/public/ui-pages.php`,
+`src/lib/forgejo.php`, `src/lib/projects.php`, `src/public/projects-api.php`,
+`tools/backup.sh`, `tools/selftest-browser.sh`,
+`tests/unit/{ui-pages,projects,stt,hygiene}.php`, `docs/STT.md`,
+`docs/DESKTOP-PLATFORMS.md` and `docs/SELFTEST-BROWSER.md`.
+
 `desktop/README.md`, `desktop/bootstrap.sh`, `desktop/connection.json.example`,
 `desktop/patches/deck-identity.patch`, `docs/ROADMAP.md`, `docs/FRAMEWORK.md`,
 `tests/unit/desktop-fork.php`, `tests/unit/framework-render.php`, `composer.json`,
