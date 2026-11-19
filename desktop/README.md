@@ -1,5 +1,11 @@
 # Hermes Control Deck — desktop app
 
+> **The desktop client now lives in its own repository:**
+> [Forgejo](http://192.168.2.157:3001/Alfires/hermes-control-deck-desktop) ·
+> [GitHub](https://github.com/Alfires/hermes-control-deck-desktop). This
+> `desktop/` directory is the historical in-tree copy; the standalone repo holds
+> the canonical fork control files, patch, build script, docs and regressions.
+
 The desktop app is a **controlled fork of the real Hermes Desktop**, not a
 rewritten client. We keep Nous Research's Electron shell, React chat surface,
 native panes, remote-gateway authentication, and platform packaging, and layer
