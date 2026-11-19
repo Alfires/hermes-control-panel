@@ -1,19 +1,31 @@
 # Hermes Control Deck
 
-A single-container control panel for the Hermes agents on the openhost Steam Deck.
-It gives every agent its own card, toolset, credential scope and session history,
-and it lets the owner approve privileged actions one at a time.
+A purpose-built control panel for the Hermes agents on the openhost Steam Deck.
+Every agent gets its own card, toolset, credential scope and session history,
+and the owner approves every privileged host action one at a time.
 
-Panel: `http://192.168.2.157:9120` (also on the Deck's Tailscale IP).
+**Panel:** `http://192.168.2.157:9120` (also on the Deck's Tailscale IP).
+**Hermes API / dashboard:** `http://192.168.2.157:8642/v1` and `:9119`, owned by
+the pre-existing `hermes` container from `/opt/hermes` — this project never
+starts a second gateway.
 
 ## What it is
 
-- **PHP 8.3 + nginx + PHP-FPM in one container** (plus cron for scheduled runs).
-- **Vanilla JS single-page UI** — no framework, no CDN, no build step.
-- **SQLite** state in `/var/lib/panel` (persistent volume).
-- **The local OpenCode API** at `host.docker.internal:4097` is the model source.
-  The panel runs its own permission-gated agent loop; the chat bridge itself has
-  tools disabled, so this is deliberate, not an accident.
+- **PHP 8.3 + nginx + PHP-FPM** in one `webui` container, plus cron for the
+  scheduled jobs. The Compose file also defines a `hermes` service, but it is
+  behind the `standalone` profile so a plain `docker compose up` cannot collide
+  with the production gateway on ports 8642/9119.
+- **Vanilla JS single-page UI** — no framework, no CDN, no npm on the target;
+  Tailwind v4 output and animate.css are vendored into the image.
+- **SQLite** state in `/var/lib/panel` (persistent volume); append-only config
+  revisions with a hash chain for AI-editable UI changes.
+- **The local OpenCode API** at `host.docker.internal:4097/v1/chat/completions`
+  is the model source (default model `big-pickle`). The panel runs its own
+  permission-gated agent loop; the Hermes chat bridge itself has tools disabled,
+  so this is deliberate, not an accident.
+- **Two root-owned brokers** (vault and host control) reached over group-
+  restricted unix sockets through a directory-mounted relay; no host systemd
+  unit is created by the panel itself beyond those two brokers.
 
 ## The four default agents
 
@@ -25,16 +37,15 @@ Panel: `http://192.168.2.157:9120` (also on the Deck's Tailscale IP).
 | Exploit Watch | daily scan + fixes on approval | `host_scan`, `cve_lookup`, `host_apply`, vault use, messaging |
 
 Agents cannot be deleted. New agents start with exactly the tools you tick and
-zero secret grants. Names, roles, ranks, system prompts, models and schedules are all editable.
+zero secret grants. Names, roles, ranks, system prompts, models and schedules
+are all editable.
 
 ## Security model (the important part)
 
-There are two independent root-owned brokers and the agent never reaches either directly:
-
 ```
 agent ──(conversation only)──► panel backend ──(RBAC + HMAC)──► host broker (root)
-                                     │
-                                     └──(logical name only)──► vault broker (root)
+                                      │
+                                      └──(logical name only)──► vault broker (root)
 ```
 
 1. **The model has no tools.** It can only emit a `TOOL_CALL:` line. The panel
@@ -55,29 +66,26 @@ agent ──(conversation only)──► panel backend ──(RBAC + HMAC)──
 6. **Isolation.** Each agent has its own tools, secret grants, sessions and
    inbox. Messages are opt-in (`can_message`). New agents start with nothing.
 
-## Deployment
+Residual risks and the precise trust boundaries are documented in
+[docs/SECURITY.md](docs/SECURITY.md).
 
-On the Deck, as root:
+## Quick start
 
 ```bash
+# One-line install (root required — it provisions the two brokers)
+curl -fsSL http://192.168.2.157:3001/Alfires/hermes-control-panel-installer/raw/branch/main/install.sh | sudo bash
+
+# Or update an existing Deck checkout in place
 sudo bash /opt/hermes-control-panel/deploy/install.sh
 ```
 
 The installer clones/updates from the local Forgejo, creates `panel.env`
-(root `0600`, contains the owner password and model key), generates the HMAC key
-in `/opt/panel-secrets`, installs `panel-hostctl.service`, and builds/starts the
-single container. It never prints a secret.
+(root `0600`, admin password and model key), generates the root-only HMAC key
+in `/opt/panel-secrets`, installs both broker units, and builds/starts **only**
+the `webui` container with `--no-deps`. It never prints a secret. The admin
+password is in `panel.env` on the target.
 
-Useful commands:
-
-```bash
-sudo systemctl status panel-hostctl
-sudo /opt/hermes/hermesctl.sh status
-sudo /home/deck/vault/vault.py list
-docker compose -f /opt/hermes-control-panel/docker-compose.yml logs -f
-```
-
-Add a secret (value goes on stdin, never on the command line):
+Add a secret (the value is read from stdin, never from the command line):
 
 ```bash
 printf '%s' 'the-value' | sudo /home/deck/vault/vault.py add NAME \
@@ -86,25 +94,55 @@ printf '%s' 'the-value' | sudo /home/deck/vault/vault.py add NAME \
 
 ## Daily exploit watch
 
-`03:15` — a read-only scan checks pending updates, SSH settings, firewall,
-unexpected all-interface listeners, privileged containers, world-writable files
-and curated critical-package rules. Findings are stored, and the Exploit Watch
-agent is woken to propose one fix per real issue. Nothing is applied without an
-approval. Owner can also press **Run scan now** in the panel.
+`worker.php security` runs daily from cron. It performs a read-only scan of
+pending updates, SSH settings, firewall, unexpected all-interface listeners,
+privileged containers, world-writable files and curated critical-package rules.
+Findings are deduplicated into the queue and the Exploit Watch agent is woken to
+propose one fix per real issue. **Nothing is applied without a separate owner
+approval.** The owner can also press **Run scan now** in the panel.
 
 ## Tests
 
 ```bash
-php tests/unit.php                                   # 30 checks, no Deck needed
-sudo bash /opt/hermes-control-panel/tests/integration.sh   # on the Deck
+cd /home/timo/programming/hermes-control-panel
+php tests/suite.php                       # 814 cases (20 live probes opt-in)
+HCP_LIVE_PASS=... RUN_LIVE=1 php tests/suite.php   # all 814 against the live panel
+
+# On the Deck, full end-to-end integration:
+sudo bash /opt/hermes-control-panel/tests/integration.sh   # 16 checks
 ```
 
 The integration suite logs in over HTTP, checks both brokers, forces forged and
 stale HMAC requests against the root broker, verifies an agent without a tool or
-approval cannot use it, and performs a real leakage probe: a temporary secret is
-injected into an echo endpoint and the raw value must be absent from every reply.
+approval cannot use it, performs a real leakage probe (a temporary secret is
+injected into an echo endpoint and the raw value must be absent from every
+reply), and confirms sessions survive a container restart.
+
+## Documentation
+
+Every part of the system is documented; start with the map and go deeper:
+
+| Document | What it covers |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Containers, trust zones, request/model/UI-edit flows, full page & source registries |
+| [FRONTEND.md](docs/FRONTEND.md) | Every SPA view, state object, event bindings, voice, wizard, theming |
+| [COMPONENTS.md](docs/COMPONENTS.md) | Every PHP module: purpose, public API, invariants, call graph |
+| [API.md](docs/API.md) | Every `api.php` action and RBAC catalogue entry |
+| [DATA-MODEL.md](docs/DATA-MODEL.md) | Every SQLite table, column, lifecycle and the hash chains |
+| [SECURITY.md](docs/SECURITY.md) | Brokers, HMAC, RBAC, escalations, approvals, redaction, residual risks |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Dockerfile, compose, brokers, installer, ports, exact commands |
+| [OPERATIONS.md](docs/OPERATIONS.md) | Schedules, findings, approvals, config revisions, backup/restore, logs |
+| [TESTING.md](docs/TESTING.md) | Test harness, local/live/integration commands and expected output |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Symptom → cause → fix for the real problems found |
+| [DEBUGGING-REPORT.md](docs/DEBUGGING-REPORT.md) | The full deep-audit record with fixes, commits and evidence |
+| [FILE-INDEX.md](docs/FILE-INDEX.md) | Inventory of every tracked file in both repos |
+| [TODO.md](docs/TODO.md) | Canonical checklist and verification evidence |
 
 ## Repository
 
-`http://192.168.2.157:3001/Alfires/hermes-control-panel`
-Commits use conventional semantic prefixes (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
+- Source: `http://192.168.2.157:3001/Alfires/hermes-control-panel`
+- One-line installer: `http://192.168.2.157:3001/Alfires/hermes-control-panel-installer`
+- This repository mirrors to GitHub as `Alfires/hermes-control-panel`.
+
+Commits use conventional semantic prefixes (`feat:`, `fix:`, `test:`, `docs:`,
+`chore:`).
