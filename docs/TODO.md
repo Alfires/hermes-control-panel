@@ -48,3 +48,48 @@ change of scope leaves a version-history trail.
       is the only recreated service).
 - [x] Browser-verification procedure captured as toolbox tool
       `panel-browser-verify`.
+- [x] Deep debugging pass: 12 confirmed defects fixed, semantic commits, 12
+      regression cases, redeployed and verified (see `DEBUGGING-REPORT.md`).
+- [x] GUI usability pass (`a72a6fe`): all 32 registered pages now render a
+      titled view backed by a curated source or an honest explanation; sidebar
+      is grouped, collapsible and searchable; Overview has a "Needs your
+      attention" strip; 10s auto-refresh no longer erases typed input;
+      Approvals shows decided history; empty vault disables the test form.
+- [x] Governance correctness (`7204a4b`): proposal expiry enforced, rollback
+      restricted to previously approved revisions, stale escalations expired
+      by the minute tick.
+- [x] Full documentation set written and published to GitHub
+      `Alfires/hermes-control-panel` (13 documents, 96 tracked files).
+- [x] Live verification after the GUI pass: 820/820 live suite cases and
+      16/16 Deck integration checks passing.
+
+## Known gaps versus the implementation plan (honest status)
+
+These are recorded here rather than papered over. The roadmap's *feature
+surface* is implemented, but the following plan items are partial:
+
+- [ ] **Config-driven UI is partial.** `config/site.json` controls nav, themes
+      and feature flags, but the browser views are hardcoded in `app.js`.
+      The planned `src/lib/blocks/*.php` renderers and `src/templates/**`
+      do not exist; `Render::page()` is used only as a self-test length check.
+      An AI can re-compose navigation and tokens, not arbitrary blocks.
+- [ ] **Local STT is wired but not functional.** The loopback proxy, mic UI and
+      capability detection exist, but no whisper.cpp model is installed in the
+      deployed image, so the Voice page correctly reports "engine not installed".
+- [ ] **Three Hermes pages are honest stubs.** `hermes-pairing`,
+      `hermes-docs` and `hermes-chat` explain where the capability lives and
+      link elsewhere; they have no dedicated safe data source.
+- [ ] **Approvals are advisory for two tools.** `host_apply` and `webui_edit`
+      record approval rows but enforcement is the escalation/HMAC path, not
+      the approvals table itself. `escalations.token_hash` is written, not read.
+- [ ] **Self-test is shallow.** It checks rendered markup length and source
+      registration, not the real browser UI; browser verification is a
+      separate manual/toolbox procedure.
+- [ ] **No backup tooling is shipped.** `OPERATIONS.md` documents a manual
+      backup of the `/var/lib/panel` volume instead.
+- [ ] **Curated critical-package rules are empty** (`{}` by default), and the
+      action catalogue's `method` field is decorative — the API accepts either
+      HTTP verb.
+- [ ] **Dead frontend variables remain.** `window.HCP_CONFIG` is injected but
+      unused, and `window.HCP_THEME_PRESETS` is read but never defined (the
+      code falls back to `S.theme_presets`).
