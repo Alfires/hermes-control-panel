@@ -230,8 +230,10 @@ def op_scan() -> dict:
     if bad:
         add("medium", "World-writable files in sensitive directories", "\n".join(bad))
 
-    # 7. known critical package fingerprints (offline, curated by the owner)
-    fp = "/opt/hermes-control-panel/critical-packages.json"
+    # 7. known critical package fingerprints (offline, curated by the owner).
+    # The installer writes the rules file into the root-only secrets directory.
+    fp = os.environ.get("PANEL_CRITICAL_PACKAGES",
+                        "/opt/panel-secrets/critical-packages.json")
     if os.path.exists(fp):
         try:
             with open(fp, encoding="utf-8") as fh:
@@ -412,6 +414,17 @@ def handle(payload: dict) -> dict:
     op = str(payload.get("op") or "")
     if op == "ping":
         return {"ok": True, "service": "panel-hostctl", "actions": sorted(ALLOWED)}
+    # The convenience ops used to be completely unauthenticated: any process
+    # running as the socket group could get a full host recon report (docker
+    # names/ports, sshd config, firewall, listeners, pending updates). Require
+    # the same signed, timestamped authorisation as an action. The PHP client
+    # always uses op="action", so this only closes the side door.
+    if op in {"status", "scan", "cve"}:
+        ok, why = verify("op:" + op, {}, str(payload.get("ts") or ""),
+                         str(payload.get("token") or ""))
+        if not ok:
+            log("refused %s: %s from %s" % (op, why, payload.get("requestor")))
+            return {"ok": False, "error": why}
     if op == "status":
         return op_status()
     if op == "scan":
@@ -460,7 +473,7 @@ class Server(socketserver.ThreadingUnixStreamServer):
             pass
         super().__init__(path, Handler)
         os.chmod(path, 0o660)
-        os.chown(path, 0, 1000)  # root:deck - only the panel backend can ask
+        os.chown(path, 0, int(os.environ.get("PANEL_SOCKET_GID", "1000")))  # root:deck by default
 
 
 def main() -> int:

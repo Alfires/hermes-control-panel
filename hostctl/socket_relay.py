@@ -23,7 +23,7 @@ RELAYS = [
     ("vault.sock", os.environ.get("RELAY_VAULT", "/run/vault-broker.sock")),
     ("hostctl.sock", os.environ.get("RELAY_HOSTCTL", "/run/panel-host.sock")),
 ]
-GROUP = 1000  # deck - the only group allowed to connect
+GROUP = int(os.environ.get("PANEL_SOCKET_GID", "1000"))  # deck on the openhost Deck
 
 
 class Handler(socketserver.BaseRequestHandler):

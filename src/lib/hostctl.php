@@ -53,7 +53,11 @@ final class HostCtl {
                 return ['ok' => false, 'error' => 'host control key unavailable'];
             }
             $ts = (string)time();
-            $canonical = json_encode($argsObj, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            // The root broker signs with Python json.dumps(sort_keys=True,
+            // separators=(",", ":")). Sorting here too keeps the HMAC identical
+            // for multi-key args instead of accepting only single-key actions.
+            $canonical = json_encode((object) self::sortedArgs($args),
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             $msg = $action . '|' . $canonical . '|' . $ts;
             $payload['ts'] = $ts;
             $payload['token'] = hash_hmac('sha256', $msg, trim($key));
@@ -63,6 +67,15 @@ final class HostCtl {
         DB::audit('agent:' . ($agent['id'] ?? 0), 'host.' . $action,
             substr(json_encode($args, JSON_UNESCAPED_SLASHES) ?: '', 0, 500));
         return $reply;
+    }
+
+    /** Recursively sort argument keys to match the broker's canonical JSON. */
+    private static function sortedArgs(array $args): array {
+        ksort($args, SORT_STRING);
+        foreach ($args as $k => $v) {
+            if (is_array($v)) $args[$k] = self::sortedArgs($v);
+        }
+        return $args;
     }
 
     /** Safe live probe: sends a deliberately forged privileged request and
