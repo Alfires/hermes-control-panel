@@ -45,7 +45,7 @@ each piece exists, what is real now, and what "done" means._
   (product name, app IDs, update channel disabled), idempotent build script,
   safe connection template, and tests. Verified: patch applies cleanly to the
   pinned upstream; `desktop/bootstrap.sh check` passes.
-- Tests: local suite **925 registered / 905 passed / 0 failed / 20 skipped**;
+- Tests: local suite **926 registered / 906 passed / 0 failed / 20 skipped**;
   earlier full live run **820/820** and Deck integration **16/16**. Any new
   phase must keep these green.
 

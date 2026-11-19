@@ -75,7 +75,7 @@ Every write consumes a one-shot escalation grant; reads are harmless.
 ## Verify
 
 ```bash
-php tests/suite.php                 # 925 cases, including framework + manifest tests
+php tests/suite.php                 # 926 cases, including framework + manifest tests
 bash tools/vendor-refresh.sh        # only when intentionally upgrading pins
 curl -b cookies -u ... /deck.php    # owner-only preview (local browser also works)
 ```
