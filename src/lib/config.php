@@ -89,6 +89,14 @@ final class ConfigGovernance {
     public static function approve(int $proposalId, string $actor): array {
         $proposal = DB::one('SELECT * FROM ui_config_proposals WHERE id=? AND status=\'pending\'', [$proposalId]);
         if (!$proposal) return ['ok' => false, 'error' => 'proposal not found or already decided'];
+        // expires_at was written but never checked: a stale draft could still be
+        // activated long after the owner should have been asked again.
+        if (!empty($proposal['expires_at']) && (int)$proposal['expires_at'] <= time()) {
+            DB::run("UPDATE ui_config_proposals SET status='expired' WHERE id=?", [$proposalId]);
+            DB::run("UPDATE ui_config_revisions SET state='rejected' WHERE id=? AND state='draft'",
+                [(int)$proposal['revision_id']]);
+            return ['ok' => false, 'error' => 'proposal has expired'];
+        }
         $revision = DB::one('SELECT * FROM ui_config_revisions WHERE id=?', [(int)$proposal['revision_id']]);
         if (!$revision || $revision['state'] !== 'draft') return ['ok' => false, 'error' => 'revision is not a draft'];
         DB::run("UPDATE ui_config_revisions SET state='superseded' WHERE state='active'");
@@ -103,6 +111,15 @@ final class ConfigGovernance {
     public static function rollback(int $revisionNumber, string $actor): array {
         $row = DB::one('SELECT * FROM ui_config_revisions WHERE revision=?', [$revisionNumber]);
         if (!$row) return ['ok' => false, 'error' => 'revision not found'];
+        // Only revisions that were actually approved and active can be restored.
+        // Previously a pending AI draft could be activated by rollback without
+        // any approval at all.
+        if (!in_array($row['state'], ['active', 'rolled_back', 'superseded'], true)) {
+            return ['ok' => false, 'error' => 'only previously approved revisions can be restored'];
+        }
+        if ((int)$row['revision'] === (int)(self::active()['revision'] ?? 0)) {
+            return ['ok' => false, 'error' => 'revision is already active'];
+        }
         DB::run("UPDATE ui_config_revisions SET state='rolled_back' WHERE state='active'");
         DB::run("UPDATE ui_config_revisions SET state='active', activated_at=? WHERE id=?", [time(), (int)$row['id']]);
         DB::audit($actor, 'ui.config.rollback', 'revision ' . $revisionNumber);

@@ -13,6 +13,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/config.php';
 require_once __DIR__ . '/lib/scheduler.php';
+require_once __DIR__ . '/lib/rbac.php';
 require_once __DIR__ . '/lib/setup.php';
 require_once __DIR__ . '/lib/hostctl.php';
 require_once __DIR__ . '/lib/util.php';
@@ -20,6 +21,9 @@ require_once __DIR__ . '/lib/util.php';
 $cmd = $argv[1] ?? 'tick';
 
 if ($cmd === 'tick') {
+    // Expire unanswered escalation requests (and used-up one-shot grants).
+    // This helper existed but was never called, so stale asks sat pending.
+    RBAC::expirePending();
     $config = ConfigGovernance::active();
     $schedule = Scheduler::parse($config['schedule']['self_test'] ?? 'daily 04:20');
     $last = DB::one("SELECT created_at FROM schedule_runs WHERE job='webui.selftest' ORDER BY id DESC LIMIT 1");
