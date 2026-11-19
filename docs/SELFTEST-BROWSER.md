@@ -110,8 +110,10 @@ minute tick.
   "http://192.168.2.157:9120 /tmp/opencode/deck-browser-selftest-toolcheck2 6" })`.
 - Unreachable panel (`PANEL_BASE=http://127.0.0.1:1`): `SKIPPED`, 13 skipped,
   exit 0 — no fake pass.
-- The Deck's `deck-notes-research.timer` periodically stops the `webui`
-  container. If that lands mid-run, the tool reports `SKIPPED` for the unvisited
-  pages (never `FAIL` for an outage). Restart with `docker compose up -d
-  --no-deps webui` in `/opt/hermes-control-panel` and re-run.
+- A panel outage landing mid-run (for example a redeploy recreating `webui`)
+  makes the tool report `SKIPPED` for the unvisited pages — never `FAIL` for an
+  outage. Confirm with `curl -fsS http://192.168.2.157:9120/health.php`, then
+  re-run once the panel is back. (An early draft blamed
+  `deck-notes-research.timer`; that service has no Docker/container code, so the
+  claim was removed.)
 - No password found in any generated report or log.
