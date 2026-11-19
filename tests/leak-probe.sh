@@ -33,13 +33,18 @@ echo -n "$SECRET_NAME" > /tmp/leak-probe-name
 python3 "$DIR/tests/leak_echo_server.py" "$PORT" >/tmp/leak-echo.log 2>&1 &
 PROBE_SERVER=$!
 sleep 1
+curl -s --max-time 3 -o /dev/null "http://127.0.0.1:$PORT/echo"
+ok $? "test endpoint reachable"
 printf '%s' "$SECRET" | python3 /home/deck/vault/vault.py add "$SECRET_NAME" \
   --label "no-leak probe" --allow-http "127.0.0.1:$PORT" --approval policy >/dev/null 2>&1
 ok $? "synthetic secret stored root-only"
 
-# Log in so we can call the panel's owner-only vault.test action.
+# Log in so we can call the panel's owner-only vault.test action. The first GET
+# sets the CSRF cookie; skipping it makes login fail and the probe look like a
+# false pass (empty reply, no leak, no marker).
 USER=$(grep -E '^PANEL_ADMIN_USER=' "$DIR/panel.env" | cut -d= -f2-)
 PASSWD=$(grep -E '^PANEL_ADMIN_PASSWORD=' "$DIR/panel.env" | cut -d= -f2-)
+curl -s -b "$JAR" -c "$JAR" -o /dev/null "$BASE/"
 curl -s -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' \
   -X POST "$BASE/api.php?action=login" \
   --data-binary "{\"username\":\"$USER\",\"password\":\"$PASSWD\"}" >/dev/null
@@ -55,13 +60,27 @@ variants = {
     "base64": base64.b64encode(secret.encode()).decode(),
     "urlencoded": urllib.parse.quote(secret, safe=""),
 }
-leaked = [name for name, v in variants.items() if v and len(v) >= 4 and v in resp]
+def clean(s):
+    for v in variants.values():
+        if v and len(v) >= 4:
+            s = s.replace(v, "<SECRET>")
+    return s
+try:
+    parsed = json.loads(resp)
+except Exception:
+    print("  probe error: reply is not JSON: " + clean(resp)[:300])
+    raise SystemExit(1)
+if not parsed.get("ok"):
+    print("  probe error: vault.test failed: " + clean(resp)[:300])
+    raise SystemExit(1)
+body = json.dumps(parsed.get("body") or parsed, ensure_ascii=False)
+leaked = [name for name, v in variants.items() if v and len(v) >= 4 and v in body]
 if leaked:
     print("  LEAK: secret survived as " + ", ".join(leaked))
     raise SystemExit(1)
 print("  no raw/base64/url-encoded form of the secret in the reply")
-if "***" not in resp:
-    print("  LEAK: no redaction marker in the reply")
+if "***" not in body:
+    print("  probe error: request succeeded but no redaction marker in body: " + clean(body)[:300])
     raise SystemExit(1)
 print("  redaction marker present")
 PY
