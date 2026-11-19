@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__, 2) . '/src/lib/registry.php';
+
 /** Opt-in live checks against a running panel. Never prints credentials. */
 final class LiveChecks
 {
@@ -43,12 +45,13 @@ final class LiveChecks
             CURLOPT_TIMEOUT => 25,
             CURLOPT_CUSTOMREQUEST => $method,
         ];
-        if ($data !== null) {
-            $headers = ['Content-Type: application/json'];
-            if ($auth && self::$csrf !== '') $headers[] = 'X-CSRF-Token: ' . self::$csrf;
-            $opts[CURLOPT_HTTPHEADER] = $headers;
+        $headers = [];
+        if ($auth && self::$csrf !== '') $headers[] = 'X-CSRF-Token: ' . self::$csrf;
+        if ($method !== 'GET' && $data !== null) {
+            $headers[] = 'Content-Type: application/json';
             $opts[CURLOPT_POSTFIELDS] = json_encode($data, JSON_UNESCAPED_SLASHES);
         }
+        if ($headers !== []) $opts[CURLOPT_HTTPHEADER] = $headers;
         curl_setopt_array($ch, $opts);
         $body = (string)curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -59,7 +62,18 @@ final class LiveChecks
 
     private static function api(string $action, array $data = [], bool $auth = true): array
     {
-        return self::raw('/api.php?action=' . rawurlencode($action), 'POST', $data, $auth);
+        $method = 'POST';
+        foreach (PanelActions::catalog() as $name => $entry) {
+            if ($name === $action) { $method = $entry['method']; break; }
+        }
+        $path = '/api.php?action=' . rawurlencode($action);
+        if ($method === 'GET') {
+            foreach ($data as $key => $value) {
+                $path .= '&' . rawurlencode((string)$key) . '=' . rawurlencode(is_scalar($value) ? (string)$value : json_encode($value));
+            }
+            return self::raw($path, 'GET', null, $auth);
+        }
+        return self::raw($path, 'POST', $data, $auth);
     }
 
     private static function login(): bool

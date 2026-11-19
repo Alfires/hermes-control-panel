@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/** Reviewed package floor used by the critical-package security scan. Curated by
+ *  the owner; keep this list explicit rather than defaulting the rules to {}. */
+const CRITICAL_PACKAGES = [
+    'ssh', 'sudo', 'curl', 'wget', 'git', 'docker', 'podman',
+    'systemd', 'iptables', 'nftables', 'openssl',
+];
+
 /** Declarative registries: pages, blocks, panel actions and curated Hermes sources.
  *  Code owns capability; configuration only composes what is registered here. */
 final class PanelActions {
@@ -14,10 +21,22 @@ final class PanelActions {
             'ui.config.diff', 'hermes.source', 'stt.transcribe', 'stt.status', 'selftest.run',
             'selftest.report', 'theme.presets', 'theme.set', 'vault.test', 'vault.list',
             'audit.list', 'setup.status', 'setup.complete', 'hermes.deep_link',
+            'layout.save', 'agent.message', 'panel.host.probe', 'panel.redaction.probe',
+            // Declarative page manifests (AI-editable UI) and Forgejo-backed projects.
+            'ui.page.list', 'ui.page.preview', 'ui.page.propose', 'ui.page.approve',
+            'ui.page.rollback', 'ui.page.history',
+            'project.create', 'project.list', 'project.get', 'project.git.status',
+            'project.git.log', 'project.git.diff', 'project.open',
         ];
+        // Actions that read their arguments from the JSON body must stay POST,
+        // even when their name looks like a read. The catalogue is enforced by
+        // api.php, so it has to describe what the handler actually consumes.
+        $bodyReads = ['search.query', 'ui.config.diff'];
+        $forceGet = ['project.open', 'project.git.log'];
         $out = [];
         foreach ($actions as $i => $name) {
-            $read = (bool) preg_match('/^(me|bootstrap|state\.diff|.*\.list|.*\.get|.*\.history|.*\.diff|.*\.status|.*\.report|theme\.presets|search\.query|vault\.list|audit\.list|setup\.status)$/', $name);
+            $read = (bool) preg_match('/^(me|state\.diff|.*\.list|.*\.get|.*\.history|.*\.diff|.*\.status|.*\.report|theme\.presets|vault\.list|audit\.list|setup\.status)$/', $name);
+            $read = ($read || in_array($name, $forceGet, true)) && !in_array($name, $bodyReads, true);
             $out[$name] = [
                 'method' => $read ? 'GET' : 'POST',
                 'capability' => 'panel.' . str_replace('.', '_', $name),
@@ -27,6 +46,12 @@ final class PanelActions {
             ];
         }
         return $out;
+    }
+
+    /** Fail-closed verb check against the declared catalogue entry. */
+    public static function assertMethod(string $action, string $actualMethod): bool {
+        $entry = self::catalog()[$action] ?? null;
+        return $entry !== null && strtoupper(trim($actualMethod)) === $entry['method'];
     }
 }
 

@@ -68,7 +68,8 @@ Every UI read and write goes through a single front controller, `src/public/api.
 
 ```
   app.js api(action, data)
-     │  POST /api.php?action=…  (JSON body, credentials: same-origin,
+     │  GET or POST /api.php?action=…  (verb from window.API_METHODS;
+     │  GET args in query, POST args as JSON body; credentials: same-origin,
      │  X-CSRF-Token from the non-HttpOnly panel_csrf cookie)
      ▼
   nginx :8080  →  fastcgi 127.0.0.1:9000  →  PHP-FPM  →  api.php

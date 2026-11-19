@@ -28,7 +28,6 @@ if (empty($_COOKIE['panel_csrf'])) {
 <link rel="stylesheet" href="/assets/vendor/animate.min.css">
 <link rel="stylesheet" href="/tailwind.css">
 <link rel="stylesheet" href="/app.css">
-<script>window.HCP_CONFIG = <?= json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;</script>
 </head>
 <body>
 
@@ -100,6 +99,7 @@ if (empty($_COOKIE['panel_csrf'])) {
   <div id="toast" class="toast hidden"></div>
 </div>
 
+<script>window.API_METHODS = <?= json_encode(array_map(static fn(array $a): string => $a['method'], PanelActions::catalog()), JSON_UNESCAPED_SLASHES) ?>;</script>
 <script src="/app.js"></script>
 </body>
 </html>

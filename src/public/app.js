@@ -128,11 +128,20 @@ const PAGE_NOTE = {
 const csrfToken = () => (document.cookie.match(/(?:^|;\s*)panel_csrf=([^;]+)/) || [])[1] || '';
 
 async function api(action, data = {}) {
-  const r = await fetch('/api.php?action=' + encodeURIComponent(action), {
-    method:'POST', credentials:'same-origin',
-    headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken()},
-    body: JSON.stringify(data),
-  });
+  const method = (window.API_METHODS || {})[action] === 'GET' ? 'GET' : 'POST';
+  let url = '/api.php?action=' + encodeURIComponent(action);
+  const headers = {'X-CSRF-Token':csrfToken()};
+  const opts = {method, credentials:'same-origin', headers};
+  if (method === 'GET') {
+    // Read-only actions carry no nested payloads; keep the URL unambiguous.
+    for (const [k, v] of Object.entries(data || {})) {
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : String(v));
+    }
+  } else {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(data);
+  }
+  const r = await fetch(url, opts);
   try { return await r.json(); } catch (e) { return {ok:false, error:'bad JSON from server'}; }
 }
 function toast(msg) {
@@ -144,7 +153,7 @@ function applyLayout() {
   $('#brand-name').textContent = ((S.config && S.config.meta && S.config.meta.title) || l.title || 'HERMES').toUpperCase();
   const theme = S.config && S.config.theme;
   if (theme && theme.preset) {
-    const presets = window.HCP_THEME_PRESETS || (S.theme_presets || {});
+    const presets = S.theme_presets || {};
     const p = presets[theme.preset];
     document.documentElement.dataset.theme = theme.mode || (p && p.mode) || 'light';
     document.documentElement.dataset.radius = theme.radius || (p && p.radius) || 'rounded';

@@ -73,7 +73,17 @@ mkdir -p /opt/panel-sockets && chmod 755 /opt/panel-sockets
 chmod 755 "$DIR/hostctl/hostctl.py" "$DIR/hostctl/socket_relay.py"
 install -o root -g root -m 0644 "$DIR/hostctl/panel-hostctl.service" /etc/systemd/system/panel-hostctl.service
 install -o root -g root -m 0644 "$DIR/hostctl/panel-socket-relay.service" /etc/systemd/system/panel-socket-relay.service
-echo '{}' > "$SECRETS/critical-packages.json"
+# Curated critical-package floor (reviewed list mirrored in src/lib/registry.php).
+# The broker flags any of these whose apt candidate is "(none)". The value is
+# only the finding's explanation text — never a secret. Written only when
+# absent/empty so an owner's edited rules file survives redeploys.
+if [[ ! -s "$SECRETS/critical-packages.json" ]]; then
+cat > "$SECRETS/critical-packages.json" <<'RULES'
+{"ssh":"security-critical: must remain installable","sudo":"security-critical: must remain installable","curl":"security-critical: must remain installable","wget":"security-critical: must remain installable","git":"security-critical: must remain installable","docker":"security-critical: must remain installable","podman":"security-critical: must remain installable","systemd":"security-critical: must remain installable","iptables":"security-critical: must remain installable","nftables":"security-critical: must remain installable","openssl":"security-critical: must remain installable"}
+RULES
+fi
+chmod 600 "$SECRETS/critical-packages.json"
+python3 -m json.tool "$SECRETS/critical-packages.json" >/dev/null || echo 'WARN: critical-package rules are not valid JSON'
 systemctl daemon-reload
 systemctl enable --now panel-hostctl >/dev/null
 systemctl restart panel-hostctl >/dev/null

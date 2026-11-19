@@ -16,6 +16,10 @@ http(){ curl -s -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' \
   -H "X-CSRF-Token: $(csrf)" \
   -X POST "$BASE/api.php?action=$1" --data-binary "$2"; }
 
+# Read-only actions declare GET in the action catalogue, which api.php enforces.
+httpget(){ curl -s -b "$JAR" -c "$JAR" -H "X-CSRF-Token: $(csrf)" \
+  "$BASE/api.php?action=$1"; }
+
 echo "== container and brokers =="
 [ "$(docker inspect -f '{{.State.Status}}' hermes-panel 2>/dev/null)" = running ]; ok $? "panel container running"
 [ "$(systemctl is-active panel-hostctl)" = active ]; ok $? "host broker active"
@@ -39,7 +43,7 @@ echo "== read-only API =="
 http security.scan '{}' > /tmp/panel-resp
 python3 -c 'import json;d=json.load(open("/tmp/panel-resp"));assert d["ok"] and "findings" in d' 2>/dev/null
 ok $? "security scan via panel"
-http audit.list '{}' > /tmp/panel-resp
+httpget audit.list > /tmp/panel-resp
 python3 -c 'import json;assert json.load(open("/tmp/panel-resp"))["ok"]' 2>/dev/null
 ok $? "audit trail readable"
 

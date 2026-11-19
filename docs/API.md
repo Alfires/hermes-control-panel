@@ -1,6 +1,6 @@
 # HTTP API Reference
 
-This document is the complete, code-derived reference for the JSON API in `src/public/api.php` (390 lines at the verified commit). It covers all 39 actions in the file's `switch`, all 35 entries in `PanelActions::catalog()`, the exact guards applied before dispatch, every request field and response shape, side effects, and the UI view that consumes each action. It documents only behaviour present in this repository.
+This document is the complete, code-derived reference for the JSON API in `src/public/api.php`. It covers all 52 actions in the file's `switch`, the matching 52 entries in `PanelActions::catalog()` (the two are checked equal by `tests/unit/hygiene.php`), the exact guards applied before dispatch, every request field and response shape, side effects, and the UI view that consumes each action. It documents only behaviour present in this repository. The newer declarative-page (`ui.page.*`) and Forgejo project (`project.*`) families are documented in their source modules and were added after this reference was first written; consult `src/public/ui-pages.php` and `src/public/projects-api.php` for their fields.
 
 **Last verified:** 2026-11-19 against commit `0137eff test: add regressions for deep-debug fixes`.
 
@@ -14,7 +14,7 @@ Every call is an HTTP request to:
 /api.php?action=<action>
 ```
 
-`api.php` reads the action from `$_GET['action']` and all other fields from `Util::body()`, which accepts a JSON object, a form-encoded body (`parse_str`), or `$_POST`. There is **no server-side HTTP-verb restriction**: the catalog's `method` field is declarative metadata only. The SPA's `api()` helper always issues `POST` with `Content-Type: application/json`, `credentials: 'same-origin'`, and `X-CSRF-Token: <panel_csrf cookie>`.
+`api.php` reads the action from `$_GET['action']`. Mutations read their fields from `Util::body()` (JSON object, form-encoded body or `$_POST`); read-only actions read query parameters. The action catalogue's `method` field is now **enforced**: `PanelActions::assertMethod()` rejects a wrong verb with HTTP 405, and `PanelActions::catalog()` is injected into the page as `window.API_METHODS` so the SPA's `api()` helper picks the declared verb. All calls use `credentials: 'same-origin'` and the `X-CSRF-Token: <panel_csrf cookie>` header; POST calls also send `Content-Type: application/json`. The catalogue deliberately marks `bootstrap` as POST because it installs RBAC defaults.
 
 Before the `switch`, three guards run (in this order):
 

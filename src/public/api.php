@@ -19,6 +19,16 @@ Auth::ensureOwner();
 
 $action = $_GET['action'] ?? '';
 $b = Util::body();
+// GET reads take their arguments from the query string, not a JSON body.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    $b = array_merge($b, $_GET);
+}
+
+// The action catalogue declares the canonical verb; enforce it so the method
+// field is a contract rather than decoration.
+if (!PanelActions::assertMethod($action, $_SERVER['REQUEST_METHOD'] ?? 'GET')) {
+    Util::json(['ok' => false, 'error' => 'method not allowed'], 405);
+}
 
 // Same-origin guard for state-changing calls.
 if (!in_array($action, ['login', 'me'], true) && !empty($_SERVER['HTTP_ORIGIN'])) {
@@ -387,6 +397,31 @@ switch ($action) {
     case 'setup.complete':
         Auth::require();
         Util::json(Setup::finish('owner'));
+
+    /* ------------------- declarative page manifests / Forgejo projects ------ */
+
+    case 'ui.page.list':
+    case 'ui.page.preview':
+    case 'ui.page.propose':
+    case 'ui.page.approve':
+    case 'ui.page.rollback':
+    case 'ui.page.history':
+        Auth::require();
+        require_once __DIR__ . '/ui-pages.php';
+        $pageResult = \Deck\UiPages\handle($action, $b, ['owner' => true, 'actor' => 'owner']);
+        Util::json($pageResult, empty($pageResult['ok']) ? (int)($pageResult['status'] ?? 400) : 200);
+
+    case 'project.create':
+    case 'project.list':
+    case 'project.get':
+    case 'project.git.status':
+    case 'project.git.log':
+    case 'project.git.diff':
+    case 'project.open':
+        Auth::require();
+        require_once __DIR__ . '/projects-api.php';
+        $projectResult = \Deck\Projects\handle($action, $b, ['owner' => true]);
+        Util::json($projectResult, empty($projectResult['ok']) ? (int)($projectResult['status'] ?? 400) : 200);
 
     default:
         Util::json(['ok' => false, 'error' => 'unknown action'], 404);

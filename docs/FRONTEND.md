@@ -113,7 +113,7 @@ Helpers:
 - `fmt(ts)` / `ago(ts)` — absolute locale time, or relative `Xs/m/h/d ago`.
 - `L()` — parses `S.layout.value` into an object, returning `{}` on error; this is the agent-editable layout store.
 - `csrfToken()` — regex-reads `panel_csrf` from `document.cookie`.
-- `api(action, data)` — always `POST /api.php?action=<encoded>`, `credentials: 'same-origin'`, JSON body, `X-CSRF-Token` header; catches bad JSON into `{ok:false, error:'bad JSON from server'}`.
+- `api(action, data)` — picks `GET` or `POST` from the injected `window.API_METHODS` catalogue (fallback `POST`), sends `credentials: 'same-origin'` and the `X-CSRF-Token` header; GET args become query parameters, POST args a JSON body; catches bad JSON into `{ok:false, error:'bad JSON from server'}`.
 - `toast(msg)` — writes `#toast`, shows it, auto-hides after 3 s.
 - `applyLayout()` — sets brand text from `config.meta.title` or layout `title`, sets `document.documentElement.dataset.theme` / `.dataset.radius`, and applies validated CSS custom properties from `theme.tokens` via `style.setProperty`. **Raw `custom_css` is intentionally ignored** — only schema-validated tokens are applied.
 - `sortedAgents()` — sorts agents by `layout.card_order` slug order, then by id; this drives the "ranks".
