@@ -82,16 +82,15 @@ final class HermesSources {
 final class PageRegistry {
     public static function builtin(): array {
         $groups = [
-            'Core' => ['overview', 'sessions', 'agents', 'approvals', 'security', 'vault', 'settings', 'audit', 'setup', 'search'],
-            'Hermes' => ['hermes-status', 'hermes-sessions', 'hermes-files', 'hermes-analytics', 'hermes-models',
-                'hermes-logs', 'hermes-cron', 'hermes-skills', 'hermes-plugins', 'hermes-mcp', 'hermes-pairing',
-                'hermes-channels', 'hermes-webhooks', 'hermes-profiles', 'hermes-config', 'hermes-env',
-                'hermes-system', 'hermes-docs', 'hermes-chat'],
-            'Workspace' => ['voice', 'themes', 'self-test'],
+            'Core' => ['overview', 'chats', 'agents', 'approvals', 'security', 'vault', 'settings', 'audit', 'setup', 'search'],
+            // Hermes capabilities are NOT separate sidebar sections. They are
+            // one integrated workspace with internal area tabs, so the UI stays
+            // simple and the pages feel built in rather than bolted on.
+            'Workspace' => ['hermes', 'themes', 'self-test'],
         ];
-        $icons = ['overview' => '◈', 'sessions' => '▤', 'agents' => '◆', 'approvals' => '✓', 'security' => '⚑',
+        $icons = ['overview' => '◈', 'chats' => '✎', 'agents' => '◆', 'approvals' => '✓', 'security' => '⚑',
             'vault' => '⚿', 'settings' => '⚙', 'audit' => '≡', 'setup' => '⚒', 'search' => '⌕',
-            'voice' => '◉', 'themes' => '◐', 'self-test' => '✦'];
+            'themes' => '◐', 'self-test' => '✦', 'hermes' => '▦'];
         $pages = [];
         $order = 0;
         foreach ($groups as $group => $ids) {

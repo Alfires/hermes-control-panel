@@ -104,7 +104,14 @@ test('debug.ui.every.registered.page.is.reachable', static function (): void {
         'could not locate PageRegistry::builtin() groups');
     preg_match_all("/'([a-z][a-z0-9-]*)'/", $m[1], $ids);
     $pages = array_values(array_unique($ids[1]));
-    ok(count($pages) >= 30, 'expected the full registered page set, got ' . count($pages));
+    // The builder deliberately simplified navigation: one built-in Hermes area
+    // instead of 19 separate Hermes pages, and voice lives inside the chat.
+    ok(count($pages) >= 12, 'expected the simplified registered page set, got ' . count($pages));
+    ok(!in_array('voice', $pages, true), 'voice must not be its own sidebar page');
+    ok(in_array('chats', $pages, true) && in_array('hermes', $pages, true),
+        'chats and one integrated Hermes area must be registered');
+    ok(count(array_filter($pages, static fn($p) => str_starts_with($p, 'hermes-'))) === 0,
+        'Hermes features must not create separate sidebar sections');
 
     $js = (string) file_get_contents(repo_path('src/public/app.js'));
     ok((bool) preg_match('/const TITLES = \{(.*?)\n\};/s', $js, $t), 'TITLES map missing');
@@ -175,4 +182,32 @@ test('debug.installer.env.names.match.app', static function (): void {
         contains($installer, $name, "installer is missing $name");
     }
     not_contains($installer, 'ADMIN_PASSWORD_HASH', 'legacy unused env name must be gone');
+});
+
+// Builder UI pass: chat stays on the right, fullscreen is opt-in, the microphone
+// lives in the composer, and no menu is allowed to clip its own content.
+test('debug.ui.chat.dock.and.mic', static function (): void {
+    $html = (string) file_get_contents(repo_path('src/public/index.php'));
+    $js = (string) file_get_contents(repo_path('src/public/app.js'));
+    $css = (string) file_get_contents(repo_path('src/public/app.css'));
+    contains($html, 'id="chat-dock-btn"', 'top bar must open the right-side chat');
+    contains($html, 'class="mic-compose" id="chat-mic"', 'voice must be a button in the chat composer');
+    contains($html, 'id="chat-full"', 'chat must have an explicit fullscreen control');
+    contains($js, "classList.toggle('fullscreen'", 'fullscreen must be a toggle, not the default');
+    contains($js, 'function bindMicControl(', 'one shared microphone implementation is required');
+    contains($js, 'bindMicControl($(\'#chat-mic\')', 'chat mic must be wired to the composer');
+    not_contains($js, "$('#voice-btn')", 'the old separate Voice menu must be gone');
+    contains($css, '.chat-overlay{position:fixed; top:0; right:0;', 'chat must dock on the right');
+    contains($css, '.chat-overlay.fullscreen{width:100vw', 'fullscreen chat must use the whole window');
+});
+test('debug.ui.every.menu.scrolls', static function (): void {
+    $css = (string) file_get_contents(repo_path('src/public/app.css'));
+    foreach (['.nav{', '.content{', '.drawer-body{', '.chat-thread{', '.view-tabs{'] as $selector) {
+        $pos = strpos($css, $selector);
+        ok($pos !== false, "missing scrollable rule for $selector");
+        if ($pos !== false) {
+            $rule = substr($css, $pos, strpos($css, '}', $pos) - $pos);
+            contains($rule, 'overflow', "$selector must declare overflow");
+        }
+    }
 });

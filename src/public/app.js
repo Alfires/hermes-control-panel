@@ -45,23 +45,22 @@ let customStyle = null;
 
 const NAV = [
   {id:'overview', ico:'◈', label:'Overview', group:'Core'},
-  {id:'sessions', ico:'▤', label:'Sessions', group:'Core'},
+  {id:'chats',     ico:'✎', label:'Chats', group:'Core'},
   {id:'agents',    ico:'⬡', label:'Agents', group:'Core'},
   {id:'approvals', ico:'✓', label:'Approvals', group:'Core'},
   {id:'security', ico:'⚠', label:'Security', group:'Core'},
   {id:'vault',     ico:'⚿', label:'Vault', group:'Core'},
   {id:'search',    ico:'⌕', label:'Search', group:'Core'},
   {id:'themes',    ico:'◐', label:'Themes', group:'Workspace'},
-  {id:'voice',     ico:'◉', label:'Voice', group:'Workspace'},
   {id:'self-test', ico:'✦', label:'Self test', group:'Workspace'},
-  {id:'hermes',    ico:'▦', label:'Hermes', group:'Hermes'},
+  {id:'hermes',    ico:'▦', label:'Hermes', group:'Workspace'},
   {id:'settings', ico:'⚙', label:'Settings', group:'Core'},
   {id:'audit',     ico:'≡', label:'Audit', group:'Core'},
   {id:'setup',     ico:'⬇', label:'Setup', group:'Core'},
 ];
 const TITLES = {
   overview:['Overview','All agents, sessions and live activity'],
-  sessions:['Sessions','Full context and chat for every agent session'],
+  chats:['Chats','Open a chat with any agent, or continue a conversation'],
   agents:['Agents','Permissions, ranks and per-agent scopes'],
   approvals:['Approvals','One-time escalations and recorded actions'],
   security:['Security','Daily exploit watch and proposed fixes'],
@@ -238,15 +237,14 @@ function renderPills() {
 function render() {
   const [title, sub] = TITLES[view] || ['', ''];
   $('#view-title').textContent = title; $('#view-sub').textContent = sub;
-  const fn = {overview:renderOverview, sessions:renderSessions, agents:renderAgents,
+  const fn = {overview:renderOverview, chats:renderChats, agents:renderAgents,
     approvals:renderApprovals, security:renderSecurity, vault:renderVault,
     settings:renderSettings, audit:renderAudit, setup:renderSetup,
-    search:renderSearch, themes:renderThemes, voice:renderVoice,
+    search:renderSearch, themes:renderThemes,
     'self-test':renderSelfTest, hermes:renderHermes}[view];
   if (fn) {
     $('#content').innerHTML = fn();
     bindContent();
-    if (view === 'voice') bindVoice();
     if (view === 'self-test') loadSelfTest();
     if (view === 'search') bindSearch();
     return;
@@ -365,18 +363,27 @@ function renderOverview() {
     <div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead><tbody>${acts}</tbody></table></div>`;
 }
 
-/* --------------------------------------------------------------- sessions */
-function renderSessions() {
+/* ------------------------------------------------------------------ chats */
+function renderChats() {
+  const cards = sortedAgents().map(a => `<div class="card chat-launch">
+    <div class="row"><span class="agent-avatar">${esc((a.name||'?')[0])}</span>
+      <div><strong>${esc(a.name)}</strong><div class="muted" style="font-size:11px">${esc(a.role)}</div></div></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary small" data-chat="${a.id}">Open chat</button>
+      <button class="btn ghost small" data-chat-full="${a.id}">Fullscreen ↗</button></div>
+  </div>`).join('');
   const rows = (S.sessions||[]).map(s => `<tr>
     <td><strong>${esc(s.title)}</strong><br><span class="muted">#${s.id}</span></td>
-    <td>${esc(s.agent_name)}</td>
-    <td>${ago(s.updated_at)}</td>
+    <td>${esc(s.agent_name)}</td><td>${ago(s.updated_at)}</td>
     <td><button class="btn small" data-open="${s.id}" data-agent="${s.agent_id}">Open</button>
         <button class="btn ghost small" data-delsess="${s.id}">Delete</button></td></tr>`).join('');
-  return `<div class="section-head"><h2>All sessions</h2>
-      <button class="btn small" data-newchat>Start a chat</button></div>
-    <div class="card"><table><thead><tr><th>Session</th><th>Agent</th><th>Updated</th><th></th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="4" class="muted">No sessions yet — open an agent chat.</td></tr>'}</tbody></table></div>`;
+  return `<p class="muted" style="margin-bottom:16px;font-size:12px">Chats normally open as a panel on the right so you can keep working.
+    Use <strong>Fullscreen</strong> when you want to focus on one conversation.</p>
+    <div class="section-head"><h2>Choose an agent</h2></div>
+    <div class="grid cards">${cards}</div>
+    <div class="section-head" style="margin-top:22px"><h2>Recent conversations</h2></div>
+    <div class="card"><table><thead><tr><th>Conversation</th><th>Agent</th><th>Updated</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4" class="muted">No conversations yet — open a chat above.</td></tr>'}</tbody></table></div>`;
 }
 
 /* ----------------------------------------------------------------- agents */
@@ -639,39 +646,53 @@ function renderVoice() {
         <span class="muted" style="font-size:11px">Audio is deleted immediately after transcription; transcripts are never logged.</span></div>
     </div></div>`;
 }
-let mediaRecorder = null, audioChunks = [];
+/** One microphone implementation used by every voice control (chat button,
+ *  and the legacy transcript page). Hold to record, release to transcribe. */
+async function bindMicControl(btn, onText, hint = null) {
+  if (!btn) return;
+  const s = await api('stt.status');
+  btn.disabled = !s.available;
+  btn.title = s.available ? 'Hold to talk, release to add the text' : 'Voice engine not installed yet';
+  let rec = null, chunks = [], stream = null;
+  const stop = () => { if (rec && rec.state !== 'inactive') rec.stop(); };
+  const start = async () => {
+    if (!s.available) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      return toast('Microphone unavailable in this browser');
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      chunks = []; rec = new MediaRecorder(stream);
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        btn.classList.remove('recording');
+        const blob = new Blob(chunks, {type: rec.mimeType || 'audio/webm'});
+        if (hint) hint.classList.add('hidden');
+        if (!blob.size) return;
+        const fd = new FormData(); fd.append('audio', blob, 'capture.webm');
+        if (hint) { hint.textContent = 'Transcribing…'; hint.classList.remove('hidden'); }
+        const r = await fetch('/api.php?action=stt.transcribe', {
+          method:'POST', credentials:'same-origin', headers:{'X-CSRF-Token':csrfToken()}, body:fd,
+        }).then(x => x.json());
+        if (hint) hint.classList.add('hidden');
+        if (r.ok && r.text) onText(String(r.text).trim());
+        else toast(r.error || 'Could not transcribe audio');
+      };
+      rec.start(); btn.classList.add('recording');
+      if (hint) { hint.textContent = 'Listening… release to add the transcript'; hint.classList.remove('hidden'); }
+    } catch (e) { toast('Microphone permission denied'); }
+  };
+  btn.onpointerdown = e => { e.preventDefault(); start(); };
+  btn.onpointerup = stop; btn.onpointerleave = stop; btn.onpointercancel = stop;
+}
 async function bindVoice() {
   const s = await api('stt.status');
   const engine = $('#voice-engine');
   if (engine) engine.textContent = s.available ? `Engine ready · ${(s.models || []).join(', ')}`
     : 'Engine not installed — recording disabled. Add a whisper.cpp model to the webui image to enable.';
-  const btn = $('#mic-btn'); if (!btn) return;
-  const state = $('#voice-state'), out = $('#voice-text');
-  btn.disabled = !s.available;
-  const start = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) return toast('Microphone unavailable in this browser');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-      audioChunks = []; mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunks, {type: mediaRecorder.mimeType || 'audio/webm'});
-        const fd = new FormData(); fd.append('audio', blob, 'capture.webm');
-        if (state) state.textContent = 'Transcribing…';
-        const r = await fetch('/api.php?action=stt.transcribe', {
-          method:'POST', credentials:'same-origin', headers:{'X-CSRF-Token':csrfToken()}, body:fd,
-        }).then(x => x.json());
-        if (r.ok) { if (out) out.textContent = r.text || '(silence)'; toast(`Transcribed in ${r.duration}s`); }
-        else { if (state) state.textContent = r.error || 'Failed'; }
-      };
-      mediaRecorder.start(); btn.classList.add('recording');
-      if (state) state.textContent = 'Recording — release to transcribe';
-    } catch (e) { toast('Microphone permission denied'); }
-  };
-  const stop = () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); btn.classList.remove('recording'); } };
-  btn.onpointerdown = (e) => { e.preventDefault(); start(); };
-  btn.onpointerup = stop; btn.onpointerleave = stop;
+  const out = $('#voice-text'); if (!out) return;
+  bindMicControl($('#mic-btn'), text => { out.textContent = text; }, $('#voice-state'));
   $('#voice-clear').onclick = () => { out.textContent = 'Nothing transcribed yet.'; };
   $('#voice-send').onclick = async () => {
     const text = out.textContent.trim(); if (!text || text === 'Nothing transcribed yet.') return;
@@ -822,11 +843,12 @@ function renderDrawer() {
 }
 
 /* ------------------------------------------------------------ chat window */
-async function openChat(agentId, sessionId = null) {
+async function openChat(agentId, sessionId = null, fullscreen = false) {
   chatAgent = (S.agents||[]).find(a => a.id === agentId);
   if (!chatAgent) return;
   chatSession = sessionId;
   $('#chat').classList.remove('hidden');
+  $('#chat').classList.toggle('fullscreen', !!fullscreen);
   $('#drawer').classList.add('hidden'); $('#drawer-backdrop').classList.add('hidden');
   $('#chat-agent').textContent = chatAgent.name;
   await loadChat();
@@ -856,7 +878,15 @@ function renderContext(sess = null) {
     <dt>System prompt</dt><dd>${esc(a.system_prompt||'')}</dd>
   </dl>`;
 }
-function closeChat() { $('#chat').classList.add('hidden'); chatAgent = null; chatSession = null; }
+function closeChat() {
+  $('#chat').classList.add('hidden'); $('#chat').classList.remove('fullscreen');
+  chatAgent = null; chatSession = null;
+}
+function openFirstChat() {
+  const agent = (S.agents || []).find(a => a.slug === 'chat' && a.enabled)
+    || (S.agents || []).find(a => a.enabled) || (S.agents || [])[0];
+  if (agent) openChat(agent.id); else toast('Create an agent first');
+}
 
 /* ----------------------------------------------------------------- modals */
 function agentModal(a = null) {
@@ -915,6 +945,7 @@ async function runScan(btn) {
 }
 function bindContentBase() {
   $$('[data-chat]').forEach(b => b.onclick = () => openChat(+b.dataset.chat));
+  $$('[data-chat-full]').forEach(b => b.onclick = () => openChat(+b.dataset.chatFull, null, true));
   $$('[data-edit]').forEach(b => b.onclick = () => agentModal((S.agents||[]).find(a=>a.id===+b.dataset.edit)));
   $$('[data-newsess]').forEach(b => b.onclick = () => openChat(+b.dataset.newsess));
   $$('[data-open]').forEach(b => b.onclick = () => openChat(+b.dataset.agent, +b.dataset.open));
@@ -984,7 +1015,7 @@ $('#login-form').onsubmit = async e => {
 };
 $('#logout-btn').onclick = async () => { await api('logout'); showLogin(); };
 $('#refresh-btn').onclick = async () => { await bootstrap(); toast('Refreshed'); };
-$('#voice-btn').onclick = () => { view = 'voice'; renderNav(); render(); };
+$('#chat-dock-btn').onclick = openFirstChat;
 $('#global-search').onkeydown = (e) => {
   if (e.key !== 'Enter') return;
   const q = e.target.value.trim(); if (!q) return;
@@ -1000,8 +1031,14 @@ $('#menu-btn').onclick = () => { $('#drawer').classList.remove('hidden'); $('#dr
 $('#drawer-close').onclick = () => { $('#drawer').classList.add('hidden'); $('#drawer-backdrop').classList.add('hidden'); };
 $('#drawer-backdrop').onclick = () => { $('#drawer').classList.add('hidden'); $('#drawer-backdrop').classList.add('hidden'); };
 $('#chat-back').onclick = closeChat; $('#chat-close').onclick = closeChat;
+$('#chat-full').onclick = () => $('#chat').classList.toggle('fullscreen');
 $('#chat-context').onclick = () => $('#chat-context-panel').classList.toggle('hidden');
 $('#chat-new').onclick = async () => { chatSession = null; await loadChat(); };
+bindMicControl($('#chat-mic'), text => {
+  const input = $('#chat-input');
+  input.value = (input.value ? input.value.replace(/\s+$/, '') + ' ' : '') + text;
+  input.focus();
+}, $('#chat-mic-hint'));
 $('#chat-form').onsubmit = async e => {
   e.preventDefault();
   const input = $('#chat-input'), msg = input.value.trim();

@@ -62,7 +62,7 @@ if (empty($_COOKIE['panel_csrf'])) {
       <div class="title-wrap"><h1 id="view-title">Overview</h1><span class="subtitle" id="view-sub"></span></div>
       <div class="searchbox"><span class="mag">⌕</span><input id="global-search" placeholder="Search everything…  (/)" autocomplete="off"></div>
       <div class="top-pills" id="pills"></div>
-      <button class="icon-btn" id="voice-btn" title="Voice input">◉</button>
+      <button class="icon-btn" id="chat-dock-btn" title="Open chat panel">✎</button>
       <button class="icon-btn" id="refresh-btn" title="Refresh">⟳</button>
     </header>
     <section id="content" class="content"></section>
@@ -79,9 +79,10 @@ if (empty($_COOKIE['panel_csrf'])) {
       <button class="icon-btn" id="chat-back">←</button>
       <div><strong id="chat-agent">Agent</strong><span class="muted" id="chat-session"></span></div>
       <div class="chat-head-actions">
-        <button class="btn ghost small" id="chat-new">New session</button>
+        <button class="btn ghost small" id="chat-new">New chat</button>
         <button class="btn ghost small" id="chat-context">Context</button>
-        <button class="icon-btn" id="chat-close">✕</button>
+        <button class="btn ghost small" id="chat-full" title="Toggle fullscreen chat">Fullscreen ⛶</button>
+        <button class="icon-btn" id="chat-close" title="Close chat">✕</button>
       </div>
     </div>
     <div class="chat-main">
@@ -89,9 +90,11 @@ if (empty($_COOKIE['panel_csrf'])) {
       <aside class="chat-context hidden" id="chat-context-panel"></aside>
     </div>
     <form class="chat-compose" id="chat-form">
+      <button class="mic-compose" id="chat-mic" type="button" title="Hold to talk">◉</button>
       <textarea id="chat-input" rows="2" placeholder="Message this agent… (plain language is fine)"></textarea>
       <button class="btn primary" type="submit">Send</button>
     </form>
+    <div id="chat-mic-hint" class="mic-hint hidden">Listening… release to add the transcript</div>
   </div>
 
   <div id="toast" class="toast hidden"></div>

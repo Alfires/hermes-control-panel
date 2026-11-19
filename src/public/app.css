@@ -52,12 +52,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 /* shell */
 .app{height:100vh; display:grid; grid-template-columns:248px 1fr}
 .sidebar{background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column;
-  padding:22px 14px; gap:20px}
+  padding:22px 14px; gap:20px; min-height:0; overflow:hidden}
 .brand{display:flex; align-items:center; gap:11px; padding:2px 8px 10px}
 .brand-mark{width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
   background:var(--accent); color:#fff; font-size:20px; box-shadow:0 5px 14px rgba(237,141,48,.25)}
 .brand-name{font-weight:850; letter-spacing:.14em; font-size:13px; color:var(--navy)}
-.nav{display:grid; gap:4px; overflow:auto}
+/* Every menu must scroll: flex children need min-height:0 or overflow is ignored. */
+.nav{display:grid; gap:4px; overflow-y:auto; overscroll-behavior:contain; min-height:0; flex:1 1 auto; scrollbar-width:thin}
 .nav-item{display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:11px;
   cursor:pointer; color:var(--muted); border:1px solid transparent; background:none; text-align:left; width:100%;
   font-size:14px; font-weight:600}
@@ -96,7 +97,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .icon-btn{background:#fff; border:1px solid var(--line); border-radius:10px; width:36px; height:36px;
   cursor:pointer; display:grid; place-items:center; flex:none; color:var(--navy); font-size:15px}
 .icon-btn:hover{border-color:var(--accent); color:var(--accent-dark)}
-.content{padding:26px 28px 40px; overflow:auto; flex:1}
+.content{padding:26px 28px 40px; overflow-y:auto; overscroll-behavior:contain; flex:1; min-height:0; scrollbar-width:thin}
 
 /* generic */
 .btn{border:1px solid var(--line); background:#fff; border-radius:10px; padding:9px 15px;
@@ -176,36 +177,51 @@ pre{white-space:pre-wrap; word-break:break-word; background:var(--panel2); borde
   border-left:1px solid var(--line); z-index:41; display:flex; flex-direction:column; box-shadow:var(--shadow-lg)}
 .drawer-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px; border-bottom:1px solid var(--line)}
 .drawer-head h2{font-size:20px}
-.drawer-body{padding:20px 22px; overflow:auto; display:grid; gap:18px; align-content:start; background:var(--bg)}
+.drawer-body{padding:20px 22px; overflow-y:auto; overscroll-behavior:contain; min-height:0; display:grid; gap:18px; align-content:start; background:var(--bg); scrollbar-width:thin}
 .drawer section{display:grid; gap:10px; padding:18px; border:1px solid var(--line); border-radius:15px;
   background:#fff; box-shadow:var(--shadow)}
 .drawer section h3{font-size:14px}
 .drawer section:last-child{border:0}
 
-/* chat */
-.chat-overlay{position:fixed; inset:0; z-index:50; background:var(--bg); display:flex; flex-direction:column}
-.chat-head{min-height:66px; flex:none; display:flex; align-items:center; gap:12px; padding:0 24px;
+/* chat — a right-side popup by default, fullscreen only on demand.
+   The rest of the deck stays visible and usable while it is open. */
+.chat-overlay{position:fixed; top:0; right:0; bottom:0; width:min(560px,100vw); z-index:50;
+  background:var(--bg); display:flex; flex-direction:column; border-left:1px solid var(--line);
+  box-shadow:-14px 0 40px rgba(23,43,64,.16); min-height:0}
+.chat-overlay.fullscreen{width:100vw; border-left:0; box-shadow:none}
+.chat-head{min-height:66px; flex:none; display:flex; align-items:center; gap:10px; padding:0 18px;
   border-bottom:1px solid var(--line); background:#fff}
 .chat-head div strong{display:block; font-size:16px; color:var(--navy)}
 .chat-head .muted{font-size:12px}
-.chat-head-actions{margin-left:auto; display:flex; gap:8px; align-items:center}
+.chat-head-actions{margin-left:auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
 .chat-main{flex:1; display:flex; min-height:0}
-.chat-thread{flex:1; overflow:auto; padding:28px max(28px,7vw); display:flex; flex-direction:column; gap:15px}
-.msg{max-width:min(780px,86%); padding:14px 17px; border-radius:16px; border:1px solid var(--line);
+.chat-thread{flex:1; overflow-y:auto; overscroll-behavior:contain; padding:24px 22px; display:flex; flex-direction:column; gap:15px; min-height:0}
+.msg{max-width:min(780px,94%); padding:14px 17px; border-radius:16px; border:1px solid var(--line);
   background:#fff; white-space:pre-wrap; box-shadow:var(--shadow)}
 .msg.user{align-self:flex-end; background:var(--accent-soft); border-color:#f6d6b4}
 .msg.assistant{align-self:flex-start}
 .msg.system{align-self:center; background:transparent; border:0; box-shadow:none; color:var(--muted); font-size:12px; max-width:100%; text-align:center}
 .msg .who{font-size:10px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800; margin-bottom:5px}
 .trace{font:11px/1.5 ui-monospace,monospace; color:var(--accent-dark); margin-top:8px}
-.chat-context{width:330px; flex:none; border-left:1px solid var(--line); padding:20px; overflow:auto; background:#fff}
+.chat-context{width:300px; flex:none; border-left:1px solid var(--line); padding:20px;
+  overflow-y:auto; overscroll-behavior:contain; background:#fff; min-height:0}
 .chat-context h3{margin-bottom:10px; color:var(--accent-dark)}
 .chat-context dl{margin:0; font-size:12px}
 .chat-context dt{color:var(--muted); font-weight:700; margin-top:12px}
 .chat-context dd{margin:3px 0 0; word-break:break-word}
-.chat-compose{flex:none; display:flex; gap:10px; padding:16px 24px; border-top:1px solid var(--line); background:#fff}
-.chat-compose textarea{resize:none; min-height:54px}
-.chat-compose .btn{align-self:flex-end; padding:13px 24px}
+.chat-compose{flex:none; display:flex; gap:10px; align-items:flex-end; padding:14px 18px;
+  border-top:1px solid var(--line); background:#fff}
+.chat-compose textarea{resize:none; min-height:54px; flex:1; min-width:0}
+.chat-compose .btn{align-self:flex-end; padding:13px 20px}
+/* voice input lives inside the chat composer, never in its own menu */
+.mic-compose{width:46px; height:46px; flex:none; border-radius:12px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--accent-dark); font-size:19px; cursor:pointer; touch-action:none}
+.mic-compose:hover{border-color:var(--accent); background:var(--accent-soft)}
+.mic-compose.recording{background:var(--bad); color:#fff; border-color:var(--bad); animation:pulse 1s infinite}
+.mic-compose:disabled{opacity:.45; cursor:not-allowed}
+.mic-hint{flex:none; padding:0 18px 10px; font-size:11px; color:var(--accent-dark); background:#fff; font-weight:700}
+@keyframes pulse{50%{opacity:.65}}
+.chat-launch{display:grid; align-content:start}
 
 /* toast + modal */
 .toast{position:fixed; bottom:26px; right:26px; z-index:90; background:var(--navy); color:#fff;
@@ -303,7 +319,10 @@ html[data-theme="mono"]{ color-scheme:light;
 .search-result .kind{font-size:10px; letter-spacing:.09em; text-transform:uppercase;
   color:var(--dash-accent); font-weight:800}
 .search-result .snippet{font-size:12px; color:var(--muted); margin-top:3px}
-.view-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px}
+/* Tab strips scroll horizontally instead of growing off-screen. */
+.view-tabs{display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain;
+  padding-bottom:8px; margin-bottom:14px; scrollbar-width:thin}
+.view-tab{flex:none; white-space:nowrap}
 .view-tab{padding:7px 13px; border:1px solid var(--line); border-radius:99px; background:var(--surface);
   cursor:pointer; font-size:12px; font-weight:700; color:var(--muted)}
 .view-tab.active{background:var(--dash-accent-soft); color:var(--dash-accent); border-color:var(--dash-accent)}
