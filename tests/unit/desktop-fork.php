@@ -8,6 +8,8 @@ $readme = (string) file_get_contents(repo_path('desktop/README.md'));
 $boot = (string) file_get_contents(repo_path('desktop/bootstrap.sh'));
 $patch = (string) file_get_contents(repo_path('desktop/patches/deck-identity.patch'));
 $example = (string) file_get_contents(repo_path('desktop/connection.json.example'));
+$platforms = (string) file_get_contents(repo_path('docs/DESKTOP-PLATFORMS.md'));
+$connection = (string) file_get_contents(repo_path('desktop/CONNECTION.md'));
 
 test('desktop.fork.pins.upstream.commit', static function () use ($readme, $boot): void {
     $ref = '7c7daa25c66262d504e3c2b29ade0ed5928b056e';
@@ -43,4 +45,38 @@ test('desktop.fork.no.local.gateway', static function () use ($boot, $readme): v
     contains($boot, 'HERMES_DESKTOP_VARIANT=light', 'build must be the remote-only variant');
     contains($readme, 'does not install or start a second local agent', 'remote-only contract must be documented');
     contains($readme, 'docs/ROADMAP.md', 'remaining work must be tracked honestly');
+});
+
+test('desktop.fork.platforms.status.matrix.is.honest', static function () use ($boot, $platforms): void {
+    contains($boot, '  platforms)', 'bootstrap must expose a read-only platform status command');
+    contains($boot, 'Linux AppImage', 'status matrix must report the built Linux artifacts');
+    contains($boot, 'Linux rpm', 'status matrix must report the rpm gap');
+    contains($boot, 'Windows MSIX', 'status matrix must report the Windows gap');
+    contains($boot, 'macOS dmg/zip', 'status matrix must report the macOS gap');
+    contains($boot, 'BLOCKED', 'blocked targets must be named as blocked');
+    contains($boot, 'pacman -S rpm-tools', 'rpm blocker must name the package that needs root');
+    contains($boot, 'build-hud-modifier-monitor.mjs:36', 'Windows blocker must name the upstream guard');
+    not_contains($boot, 'dist-win)', 'no Windows build mode may pretend to work here');
+    not_contains($boot, 'dist-mac)', 'no macOS build mode may pretend to work here');
+    contains($platforms, 'Build status matrix', 'evidence doc must carry the matrix');
+    contains($platforms, 'sudo -n pacman -S --noconfirm rpm-tools', 'rpm evidence must include the exact command');
+    contains($platforms, 'Build Windows packages on Windows so the HUD helper is included.', 'MSIX evidence must include the exact upstream error');
+    contains($platforms, 'cannot be cross-built from Linux', 'macOS blocker must be explicit');
+});
+
+test('desktop.fork.login.bridge.invariants.documented', static function () use ($platforms, $connection): void {
+    contains($platforms, 'hermes.deep_link', 'current panel link path must be described');
+    contains($platforms, 'src/lib/hermes.php', 'current gateway helper must be described');
+    contains($platforms, 'safeStorage', 'token storage must stay in Electron safeStorage');
+    foreach ([
+        '**owner-only**',
+        '**one-use**',
+        '**short TTL**',
+        '**no token in git/logs/URLs**',
+        '**no conversation relay**',
+    ] as $invariant) {
+        contains($platforms, $invariant, "login bridge must document invariant $invariant");
+    }
+    contains($platforms, 'What remains to implement', 'unimplemented work must be listed honestly');
+    contains($connection, 'docs/DESKTOP-PLATFORMS.md', 'connection guide must point to the bridge design');
 });

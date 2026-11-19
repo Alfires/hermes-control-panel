@@ -21,6 +21,15 @@ Two things, both entered in the app's **Settings → Connections** screen:
 token. Copy it to the Electron `userData` directory only if you must preseed the
 URL; **type the token in the app**, not into a file.
 
+## Panel login bridge (planned, not implemented)
+
+Today the token is entered by hand. The planned one-time flow — owner signs
+into the panel, receives a short-lived authorization code, and the desktop
+exchanges it for a short-lived gateway token kept only in Electron
+`safeStorage` — is specified with its security invariants and remaining work in
+[`docs/DESKTOP-PLATFORMS.md`](../docs/DESKTOP-PLATFORMS.md). No token or chat
+traffic is proxied through the PHP panel in either flow.
+
 ## Dev / smoke test
 
 ```bash

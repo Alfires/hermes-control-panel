@@ -19,10 +19,11 @@ PNPM_VERSION=12.15.0
 
 usage() {
   cat <<'EOF'
-Usage: desktop/bootstrap.sh [check|build|dist-linux|dev]
+Usage: desktop/bootstrap.sh [check|build|dist-linux|platforms|dev]
   check      Verify the pinned upstream commit and patch metadata (no download).
   build      Clone/pin upstream, apply the Deck patch, install deps, build unpacked app.
   dist-linux Build Linux AppImage + deb (+ rpm if the host has rpmbuild).
+  platforms  Print an honest build-status matrix (no downloads, no builds).
   dev        Same preparation, then run the remote-only Vite + Electron dev server.
 Environment:
   DECK_HERMES_REF       override the pinned upstream commit
@@ -62,6 +63,42 @@ prepare() {
   (cd "$BUILD" && node scripts/build/electron-runtime.mjs --source "$BUILD")
 }
 
+# Report what is actually buildable here. This never downloads, patches or
+# builds anything, and it does not pretend Windows/macOS targets exist on a
+# Linux host. Evidence for each BLOCKED row lives in docs/DESKTOP-PLATFORMS.md.
+platforms() {
+  local release="$BUILD/apps/desktop/release"
+  local appimage deb
+  appimage="$release/HermesControlDeckLight-0.0.0-linux-x86_64.AppImage"
+  deb="$(find "$release" -maxdepth 1 -name '*.deb' -print -quit 2>/dev/null || true)"
+
+  echo "Hermes Control Deck desktop — platform status (host: $(uname -s)/$(uname -m))"
+  echo "No build is started; see docs/DESKTOP-PLATFORMS.md for the evidence."
+  echo
+  if [[ -f "$appimage" ]]; then
+    echo "Linux AppImage : BUILT   $appimage"
+  else
+    echo "Linux AppImage : NOT BUILT (run: bash $0 dist-linux)"
+  fi
+  if [[ -n "$deb" ]]; then
+    echo "Linux deb      : BUILT   $deb"
+  else
+    echo "Linux deb      : NOT BUILT (run: bash $0 dist-linux)"
+  fi
+  if command -v rpmbuild >/dev/null 2>&1; then
+    echo "Linux rpm      : READY   rpmbuild found; dist-linux also builds rpm"
+  else
+    echo "Linux rpm      : BLOCKED — no rpmbuild on PATH; pacman -S rpm-tools needs interactive root (no passwordless sudo). AppImage/deb builds are unaffected."
+  fi
+  if command -v wine >/dev/null 2>&1; then
+    echo "Windows wine   : present at $(command -v wine), but upstream needs a real Windows host."
+  else
+    echo "Windows wine   : absent."
+  fi
+  echo "Windows MSIX   : BLOCKED — upstream build-hud-modifier-monitor.mjs:36 refuses non-win32; wine does not bypass it. No dist:win mode here."
+  echo "macOS dmg/zip  : BLOCKED — cannot cross-build from Linux (macOS/Xcode actool, disk-image tooling, signing/notarization). No dist:mac mode here."
+}
+
 case "${1:-check}" in
   check)
     grep -q "$UPSTREAM_REF" "$HERE/README.md" || {
@@ -82,6 +119,9 @@ case "${1:-check}" in
     # AppImage and deb before reporting the rpm failure.
     (cd "$BUILD/apps/desktop" && HERMES_DESKTOP_VARIANT=light pnpm run dist:linux)
     echo "Linux distributables are under $BUILD/apps/desktop/release"
+    ;;
+  platforms)
+    platforms
     ;;
   dev)
     prepare
