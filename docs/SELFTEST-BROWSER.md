@@ -105,7 +105,13 @@ minute tick.
 
 - Live Deck: **13 passed, 0 failed, 0 skipped** — all registered pages showed
   their heading with no fatal error text. Report:
-  `/tmp/opencode/deck-browser-selftest/report.{json,md}`.
+  `/tmp/opencode/deck-browser-selftest/report.{json,md}`. The toolbox wrapper
+  reproduced this via `run({ name: "deck-browser-selftest", args:
+  "http://192.168.2.157:9120 /tmp/opencode/deck-browser-selftest-toolcheck2 6" })`.
 - Unreachable panel (`PANEL_BASE=http://127.0.0.1:1`): `SKIPPED`, 13 skipped,
   exit 0 — no fake pass.
+- The Deck's `deck-notes-research.timer` periodically stops the `webui`
+  container. If that lands mid-run, the tool reports `SKIPPED` for the unvisited
+  pages (never `FAIL` for an outage). Restart with `docker compose up -d
+  --no-deps webui` in `/opt/hermes-control-panel` and re-run.
 - No password found in any generated report or log.
