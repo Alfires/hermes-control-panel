@@ -1,0 +1,8 @@
+<section class="hero" data-block="hero" data-instance="{{ instance }}">
+  <div class="hero-copy">
+    <div class="trust"><span>modular</span><span>owner-approved</span><span>git-backed</span></div>
+    <h1>{{ props.title|default('Your AI team, one deck.') }}</h1>
+    <p>{{ props.subtitle|default('Chat on the right, work in the middle, approve in one click.') }}</p>
+    {% if props.action|default('') %}<div class="hero-actions"><button class="btn primary" type="button">{{ props.action }}</button></div>{% endif %}
+  </div>
+</section>

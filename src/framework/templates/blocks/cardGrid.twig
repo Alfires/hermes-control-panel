@@ -1,0 +1,12 @@
+<section class="section-head" data-block="cardGrid" data-instance="{{ instance }}"><h2>{{ props.title|default('Cards') }}</h2></section>
+<div class="grid cards">
+  {% for card in props.cards|default([]) %}
+    <div class="card chat-launch">
+      <h3>{{ card.title|default(card.0|default('Card')) }}</h3>
+      <p class="desc">{{ card.description|default(card.1|default('')) }}</p>
+      {% if card.action|default('') %}<button class="btn small" type="button">{{ card.action }}</button>{% endif %}
+    </div>
+  {% else %}
+    <div class="empty">No cards configured yet.</div>
+  {% endfor %}
+</div>

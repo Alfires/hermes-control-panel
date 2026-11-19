@@ -36,6 +36,15 @@ integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
 ## Completed (with evidence)
 
 - [x] Research reports and multipage implementation plan (`43cdb49`).
+- [x] UI simplification committed as **Hermes Builder** (`d667f39`): right-side
+      chat popup, opt-in fullscreen, mic in composer, scrollable menus, one
+      integrated Hermes area; 822-case suite green.
+- [x] Pinned Hermes Desktop fork + full system roadmap (`fd2af28`): upstream
+      `7c7daa25…`, 58-line identity patch, idempotent bootstrap, connection
+      template, four fork tests, `docs/ROADMAP.md`.
+- [x] PHP + JS framework foundation: Slim 4, Twig 3, vendored htmx/Alpine,
+      block catalog with typed props, Twig templates, `/deck.php` preview,
+      framework tests (831 cases total).
 - [x] 802-case framework test suite: 782 pass + 20 opt-in live skips locally;
       802/802 with `RUN_LIVE=1` against the deployed Deck.
 - [x] Config governance, registries, renderer, themes, search, STT, setup, self-test.

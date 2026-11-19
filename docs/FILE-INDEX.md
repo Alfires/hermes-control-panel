@@ -4,6 +4,16 @@ Purpose: a complete inventory of every tracked file in the main repo (`hermes-co
 
 **Last verified:** main repo commit `0137eff` (`test: add regressions for deep-debug fixes`) via read-only `git log -1 --oneline`; installer repo commit `a14a899`.
 
+## Files added after that verification (not line-counted here)
+
+`desktop/README.md`, `desktop/bootstrap.sh`, `desktop/connection.json.example`,
+`desktop/patches/deck-identity.patch`, `docs/ROADMAP.md`, `docs/FRAMEWORK.md`,
+`tests/unit/desktop-fork.php`, `tests/unit/framework-render.php`, `composer.json`,
+`composer.lock`, `vendor/` (committed pinned Slim/Twig packages), `tools/vendor-refresh.sh`,
+`src/framework/{Kernel,Renderer,BlockCatalog}.php`, `src/framework/templates/layout.twig`,
+`src/framework/templates/blocks/*.twig`, `src/public/deck.php`, and
+`src/public/vendor/{htmx-2.0.11.min.js,alpine-3.17.5.min.js,+ licenses}`.
+
 ## 1. Build, packaging and scheduling (main repo root)
 
 | Path | Lines | Purpose |

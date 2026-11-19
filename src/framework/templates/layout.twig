@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme.mode|default('light') }}" data-radius="{{ theme.radius|default('rounded') }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title|default('Hermes Control Deck') }} · Hermes Control Deck</title>
+<link rel="stylesheet" href="/tailwind.css">
+<link rel="stylesheet" href="/app.css">
+<script defer src="/vendor/htmx-2.0.11.min.js"></script>
+<script defer src="/vendor/alpine-3.17.5.min.js"></script>
+<style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">⬡</span><span class="brand-name">HERMES</span></div>
+    <nav class="nav" aria-label="Main menu">
+      <div class="nav-filter"><span>⌕</span><input placeholder="Jump to a page…" disabled></div>
+      <button class="nav-item active" type="button"><span class="ico">◈</span><span>{{ title }}</span></button>
+    </nav>
+    <div class="sidebar-foot"><div class="owner-chip"><span class="dot"></span><span>owner</span></div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="title-wrap"><h1>{{ title }}</h1><span class="subtitle">{{ description }}</span></div></header>
+    <section class="content">
+      {% for block in blocks %}{{ block.html|raw }}{% endfor %}
+    </section>
+  </main>
+</div>
+</body>
+</html>

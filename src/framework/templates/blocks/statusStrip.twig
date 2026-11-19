@@ -1,0 +1,9 @@
+<section class="attention" data-block="statusStrip" data-instance="{{ instance }}">
+  <div class="attention-title">{{ props.title|default('Needs your attention') }}</div>
+  {% for item in props.items|default([]) %}
+    <div class="attention-row"><span class="attention-dot {{ item.level|default('warn') }}"></span>
+      <span>{{ item.label|default(item.0|default('')) }}</span></div>
+  {% else %}
+    <div class="attention-row"><span class="attention-dot"></span><span>Nothing needs you right now.</span></div>
+  {% endfor %}
+</section>

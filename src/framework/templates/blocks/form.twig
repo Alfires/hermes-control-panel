@@ -1,0 +1,11 @@
+<section class="card" data-block="form" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Form') }}</h2>
+  <form hx-post="/api.php" hx-trigger="submit">
+    {% for field in props.fields|default([]) %}
+      <label>{{ field.label|default(field.0|default('Field')) }}
+        <input name="{{ field.name|default('field')|replace('/[^a-zA-Z0-9_-]/', '') }}" value="{{ field.value|default('') }}">
+      </label>
+    {% endfor %}
+    <button class="btn primary" type="submit">Save</button>
+  </form>
+</section>

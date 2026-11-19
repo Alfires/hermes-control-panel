@@ -1,0 +1,6 @@
+<section class="card" data-block="timeline" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Activity') }}</h2>
+  <div class="search-results">{% for event in props.events|default([]) %}
+    <div class="search-result"><span class="tag">{{ event.when|default('') }}</span> {{ event.label|default(event.0|default('')) }}</div>
+  {% else %}<div class="empty">No activity yet.</div>{% endfor %}</div>
+</section>

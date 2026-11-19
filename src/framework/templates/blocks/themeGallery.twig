@@ -1,0 +1,4 @@
+<section class="card" data-block="themeGallery" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Themes') }}</h2>
+  <div class="row">{% for preset in props.presets|default([]) %}<span class="tag">{{ preset }}</span>{% endfor %}</div>
+</section>

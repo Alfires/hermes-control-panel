@@ -1,0 +1,11 @@
+<section class="section-head" data-block="table" data-instance="{{ instance }}"><h2>{{ props.title|default('Table') }}</h2></section>
+<div class="card"><table>
+  <thead><tr>{% for col in props.columns|default([]) %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in props.rows|default([]) %}
+    <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+  {% else %}
+    <tr><td class="muted" colspan="{{ props.columns|default([])|length ?: 1 }}">No rows yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>

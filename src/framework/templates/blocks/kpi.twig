@@ -1,0 +1,7 @@
+<section class="kpi" data-block="kpi" data-instance="{{ instance }}">
+  {% for metric in props.metrics|default([]) %}
+    {% if metric is iterable %}{% set label = metric.title|default(metric.0|default('metric')) %}{% set count = metric.value|default(metric.1|default('—')) %}
+    {% else %}{% set label = metric %}{% set count = attribute(data, metric)|default([])|length %}{% endif %}
+    <div class="card"><div class="num">{{ count }}</div><div class="lbl">{{ label }}</div></div>
+  {% endfor %}
+</section>

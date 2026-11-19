@@ -1,0 +1,21 @@
+{
+  "name": "alfires/hermes-control-deck",
+  "description": "Hermes Control Deck — PHP + JavaScript modular control panel",
+  "license": "MIT",
+  "type": "project",
+  "require": {
+    "php": ">=8.3",
+    "slim/slim": "^4.14",
+    "slim/psr7": "^1.7",
+    "twig/twig": "^3.21"
+  },
+  "autoload": {
+    "psr-4": {
+      "Deck\\Framework\\": "src/framework/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

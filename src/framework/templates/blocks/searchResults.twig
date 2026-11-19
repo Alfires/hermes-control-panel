@@ -1,0 +1,7 @@
+<section class="card" data-block="searchResults" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Search') }}</h2>
+  <p class="muted">Query: {{ props.query|default('—') }}</p>
+  <div class="search-results">{% for result in data.results|default([]) %}
+    <div class="search-result"><div class="kind">{{ result.kind|default('result') }}</div>{{ result.title|default('') }}</div>
+  {% else %}<div class="empty">Type in the top search box to find pages, agents and sessions.</div>{% endfor %}</div>
+</section>

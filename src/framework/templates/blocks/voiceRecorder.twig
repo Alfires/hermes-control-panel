@@ -1,0 +1,5 @@
+<section class="card" data-block="voiceRecorder" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Voice input') }}</h2>
+  <p class="muted">{{ props.hint|default('The microphone lives in the chat composer. Audio is deleted after transcription.') }}</p>
+  <button class="mic-compose" type="button" id="framework-mic" title="Hold to talk">◉</button>
+</section>

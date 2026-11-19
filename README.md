@@ -126,6 +126,7 @@ Every part of the system is documented; start with the map and go deeper:
 |---|---|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Containers, trust zones, request/model/UI-edit flows, full page & source registries |
 | [FRONTEND.md](docs/FRONTEND.md) | Every SPA view, state object, event bindings, voice, wizard, theming |
+| [FRAMEWORK.md](docs/FRAMEWORK.md) | Slim + Twig + htmx + Alpine foundation, block catalog, safety invariants |
 | [COMPONENTS.md](docs/COMPONENTS.md) | Every PHP module: purpose, public API, invariants, call graph |
 | [API.md](docs/API.md) | Every `api.php` action and RBAC catalogue entry |
 | [DATA-MODEL.md](docs/DATA-MODEL.md) | Every SQLite table, column, lifecycle and the hash chains |

@@ -1,0 +1,5 @@
+<section class="card" data-block="auditView" data-instance="{{ instance }}">
+  <h2>{{ props.title|default('Audit') }}</h2>
+  <p class="muted">Decisions and privileged calls are appended here. Values are never removed.</p>
+  <pre>{{ data.audit|default([])|slice(0, props.limit|default(8))|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+</section>

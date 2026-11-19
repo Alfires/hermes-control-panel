@@ -154,6 +154,13 @@ php tests/suite.php
 **Goal:** a good existing framework where pages and blocks are composed from a
 registry, so adding a page is data, not copy-paste.
 
+**Foundation delivered (Nov 2026):** `composer.json`/`composer.lock` with
+committed `vendor/`, Slim 4 kernel, Twig renderer, `BlockCatalog` allowlist and
+typed prop validation, 14 block templates, vendored htmx 2.0.11 + Alpine
+3.17.5 with licenses, owner-only preview endpoint `/deck.php`, and five
+framework tests (831 suite cases total). See `docs/FRAMEWORK.md`. The SPA views
+are **not** migrated yet, so this is a foundation, not a finished rewrite.
+
 Chosen shape (PHP + JS libraries, no TypeScript):
 - **Slim 4** for routing and middleware (small, mature, dependency injection,
   PSR-7) and **Twig** for templates; both vendored with Composer so the Deck
@@ -170,9 +177,10 @@ Chosen shape (PHP + JS libraries, no TypeScript):
   `src/lib/registry.php`; the framework consumes them.
 
 Work:
-1. Install/vendor Slim + Twig + htmx + Alpine with pinned versions and
-   `composer.lock` committed. Add `tools/vendor-refresh.sh` to reproduce.
-2. Move the shell (sidebar, topbar, chat dock, drawer) into Twig layouts.
+1. ✅ Install/vendor Slim + Twig + htmx + Alpine with pinned versions and
+   `composer.lock` committed; `tools/vendor-refresh.sh` reproduces them.
+2. Move the shell (sidebar, topbar, chat dock, drawer) into Twig layouts
+   (preview layout exists; production shell migration remains).
 3. Convert the bespoke `render*()` functions one by one into registered blocks:
    `hero`, `kpi`, `cardGrid`, `table`, `form`, `chat`, `timeline`, `auditView`,
    `searchResults`, `themeGallery`, `statusStrip`, `voiceRecorder`.
