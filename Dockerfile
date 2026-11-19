@@ -13,7 +13,9 @@ ARG WHISPER_SRC_SHA256=166140e9a6d8a36f787a2bd77f8f44dd64874f12dd8359ff7c1f4f9ac
 ARG WHISPER_MODEL_REV=5359861c739e955e79d9a303bcbc70fb988958b1
 ARG WHISPER_MODEL_SHA256=c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d
 
-RUN apk add --no-cache build-base cmake curl tar \
+# ggml/CMakeLists.txt calls find_program(GIT_EXE) unconditionally, so git must
+# be installed at configure time even though we build from a tarball, not a clone.
+RUN apk add --no-cache build-base cmake curl tar git \
  && mkdir -p /tmp/whisper-src /opt/stt/models /opt/stt/baked /opt/stt/public \
  && curl -fsSL --retry 3 "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/${WHISPER_VERSION}.tar.gz" -o /tmp/whisper-src.tar.gz \
  && echo "${WHISPER_SRC_SHA256}  /tmp/whisper-src.tar.gz" | sha256sum -c - \

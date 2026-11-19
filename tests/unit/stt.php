@@ -108,6 +108,14 @@ test('stt.src.no_third_container_or_service', static function () use ($sttDocker
     eq(substr_count($sttSupervisor, '[program:'), 4, 'php-fpm, nginx, crond and stt only');
 });
 
+test('stt.src.build_stage_installs_git_for_ggml_cmake', static function () use ($sttDocker): void {
+    // ggml/CMakeLists.txt calls find_program(GIT_EXE) unconditionally; without
+    // git in the build stage cmake configure fails and the whole image build
+    // dies. This regresses the Deck deploy failure seen on 2026-11-19.
+    ok((bool) preg_match('/^RUN apk add[^\n]*\bgit\b/m', $sttDocker),
+       'build-stage apk add must include git (ggml find_program GIT_EXE)');
+});
+
 test('stt.src.supervisor_guard_is_honest', static function () use ($sttSupervisor, $sttModel): void {
     contains($sttSupervisor, '[program:stt]');
     contains($sttSupervisor, '[ -x /opt/stt/whisper-server ]', 'binary guard');
