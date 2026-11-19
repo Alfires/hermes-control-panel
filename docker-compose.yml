@@ -1,5 +1,9 @@
 services:
   hermes:
+    # Standalone option only. The production Deck already runs the gateway from
+    # /opt/hermes on 8642/9119, so this service is behind a profile and is NOT
+    # started by a plain `docker compose up -d` (which would collide on ports).
+    profiles: ["standalone"]
     image: nousresearch/hermes-agent:latest
     container_name: hermes-agent
     restart: unless-stopped
@@ -34,8 +38,6 @@ services:
       # Directory mounts (not socket files) so relays survive broker restarts.
       - /opt/panel-sockets:/run/panel-sockets
       - /opt/panel-secrets/hostctl.key:/run/hostctl-src/hostctl.key:ro
-    depends_on:
-      - hermes
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health.php"]
       interval: 30s

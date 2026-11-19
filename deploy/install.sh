@@ -96,7 +96,12 @@ cd "$DIR"
 docker compose stop webui >/dev/null 2>&1 || true
 # Production Hermes lives in /opt/hermes and already owns ports 8642/9119.
 # Start only the webui service; --no-deps prevents a duplicate gateway.
-docker rm -f hermes-agent >/dev/null 2>&1 || true
+# Never force-remove a bare container name here: the production gateway may be
+# called "hermes-agent" too. Only clean up a stale container that is labelled
+# as belonging to THIS compose project.
+STALE=$(docker ps -aq --filter 'name=^hermes-agent$' \
+  --filter 'label=com.docker.compose.project=hermes-control-panel' 2>/dev/null || true)
+if [ -n "$STALE" ]; then docker rm -f "$STALE" >/dev/null 2>&1 || true; fi
 docker compose up -d --build --no-deps webui >/dev/null
 say "container: $(docker inspect -f '{{.State.Status}}' hermes-panel)"
 
