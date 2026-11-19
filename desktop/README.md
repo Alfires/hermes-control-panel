@@ -28,9 +28,10 @@ script pins the commit and applies `patches/deck-identity.patch`, which:
 On a machine with Node >= 26 and pnpm 12.15.0:
 
 ```bash
-bash desktop/bootstrap.sh check    # no download: verify pin + patch metadata
-bash desktop/bootstrap.sh dev      # prepare upstream, run remote-only dev app
-bash desktop/bootstrap.sh build    # prepare upstream, build Linux/macOS/Windows packages
+bash desktop/bootstrap.sh check       # no download: verify pin + patch metadata
+bash desktop/bootstrap.sh dev         # prepare upstream, run remote-only dev app
+bash desktop/bootstrap.sh build       # prepare upstream, build the unpacked app
+bash desktop/bootstrap.sh dist-linux  # AppImage + deb (+ rpm if rpmbuild exists)
 ```
 
 `DECK_REMOTE_URL=https://your-domain bash desktop/bootstrap.sh dev` starts the
@@ -54,10 +55,18 @@ Still to integrate (tracked in `docs/ROADMAP.md`):
    held by Electron `safeStorage`.
 2. A branded icon set and updater feed under our control.
 3. The right-side chat popup and in-chat microphone from the web UI need to be
-   carried into the renderer (upstream already docks preview panes on the right).
-4. Build and smoke-test on target, in order: Linux, then macOS, then Windows.
-   Only the patch-application check runs here today; no packaged binary is
-   claimed as verified yet.
+   carried into the renderer. After the first real Linux build we decided **not**
+   to: the pinned upstream already ships a right sidebar, composer voice controls
+   and layout/HUD controls, so the desktop keeps its native chat surface while
+   the web UI keeps the docked popup. Evidence:
+   [docs/DESKTOP-SMOKE-LINUX.md](../docs/DESKTOP-SMOKE-LINUX.md).
+4. Build and smoke-test on target, in order: Linux → macOS → Windows. The Linux
+   **unpacked app** is now built and smoke-tested (first launch → setup → main
+   chat, composer voice controls, right sidebar, runtime app identity). An
+   AppImage and a deb were built and type-validated, and the AppImage was launched
+   headless; rpm is blocked on missing host `rpmbuild`. A real gateway token,
+   chat send, approval card and project list still need a live connection;
+   macOS and Windows are not yet verified.
 
 ## Why this shape
 

@@ -16,6 +16,10 @@ test('desktop.fork.pins.upstream.commit', static function () use ($readme, $boot
     contains($boot, 'command -v pnpm', 'bootstrap must check its toolchain');
     contains($boot, 'git -C "$BUILD" apply --check', 'bootstrap must verify the patch before applying');
     contains($boot, 'git -C "$BUILD" checkout --detach "$UPSTREAM_REF"', 'bootstrap must detach at the pin');
+    contains($boot, 'git -C "$BUILD" reset --hard "$UPSTREAM_REF"', 'bootstrap must reset the worktree so re-runs are idempotent');
+    contains($boot, 'scripts/build/electron-runtime.mjs', 'bootstrap must acquire the pinned Electron binary before packaging');
+    contains($boot, 'dist-linux)', 'bootstrap must expose a reproducible Linux distributable build');
+    contains($boot, 'pnpm run dist:linux', 'Linux distributables must use upstream dist:linux');
 });
 
 test('desktop.fork.patch.is.narrow', static function () use ($patch): void {

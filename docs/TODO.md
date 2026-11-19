@@ -19,10 +19,12 @@ The full, ordered design is in [ROADMAP.md](ROADMAP.md). Current phase is
 
 - [ ] Desktop login bridge: exchange a panel session for a short-lived Hermes
       gateway token; store it with Electron `safeStorage` only.
-- [ ] Carry the right-side chat, in-composer mic and scrollable tabs into the
-      pinned Hermes Desktop renderer.
-- [ ] Build and smoke-test at least the Linux package; honestly record macOS
-      and Windows status.
+- [x] Renderer decision from the real build: no patch needed — pinned upstream
+      already has a right sidebar, composer voice controls and layout/HUD
+      controls (`docs/DESKTOP-SMOKE-LINUX.md`). Web keeps its docked popup.
+- [x] Linux build + smoke test: unpacked app, AppImage and deb built; AppImage
+      launched headless with correct identity (`docs/DESKTOP-SMOKE-LINUX.md`).
+      Remaining: rpm needs host `rpmbuild`; macOS/Windows not built yet.
 - [ ] PHP + JS framework foundation (Slim/Twig + htmx/Alpine) and real
       block-level config rendering, replacing hardcoded browser views.
 - [ ] Forgejo-backed project creation, visible git history/diffs, and backup tool.
@@ -48,6 +50,12 @@ integration, push to Forgejo **before** deploy, then GitHub mirror and docs.
 - [x] Direct-client architecture recorded: desktop + web are two clients of the
       Hermes API, PHP panel is control plane only (`docs/ROADMAP.md`,
       `desktop/CONNECTION.md`). Platform order Linux → macOS → Windows.
+- [x] First real Linux desktop build: pinned Electron 44.10.2 acquired by the
+      bootstrap, identity patch verified in the shipped binary/`app.asar`,
+      unpacked app + AppImage + deb produced, AppImage launched headless through
+      setup to the main chat with composer voice controls and right sidebar;
+      two bootstrap defects fixed with regressions. Evidence:
+      `docs/DESKTOP-SMOKE-LINUX.md`.
 - [x] Vault no-leak proof: `tests/leak-probe.sh` echoes a real secret back raw,
       base64, URL-encoded, nested and as an error string and proves none survive;
       `tests/unit/vault-noleak-contract.php` checks the list/use-only contract

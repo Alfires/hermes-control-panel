@@ -19,10 +19,11 @@ PNPM_VERSION=12.15.0
 
 usage() {
   cat <<'EOF'
-Usage: desktop/bootstrap.sh [check|build|dev]
-  check  Verify the pinned upstream commit and that our patch applies (no download).
-  build  Clone/pin upstream, apply the Deck patch, install deps, build app packages.
-  dev    Same preparation, then run the remote-only Vite + Electron dev server.
+Usage: desktop/bootstrap.sh [check|build|dist-linux|dev]
+  check      Verify the pinned upstream commit and patch metadata (no download).
+  build      Clone/pin upstream, apply the Deck patch, install deps, build unpacked app.
+  dist-linux Build Linux AppImage + deb (+ rpm if the host has rpmbuild).
+  dev        Same preparation, then run the remote-only Vite + Electron dev server.
 Environment:
   DECK_HERMES_REF       override the pinned upstream commit
   DECK_HERMES_UPSTREAM  override the upstream repository URL
@@ -38,6 +39,9 @@ prepare() {
   fi
   git -C "$BUILD" fetch --depth 1 origin "$UPSTREAM_REF" 2>/dev/null || true
   git -C "$BUILD" checkout --detach "$UPSTREAM_REF"
+  # Re-running must be idempotent: checkout of the same commit keeps the patch
+  # a prior run left in the worktree, so force it back to a pristine pin first.
+  git -C "$BUILD" reset --hard "$UPSTREAM_REF"
   echo "Upstream commit: $(git -C "$BUILD" rev-parse HEAD)"
 
   # Refuse to build against an unexpected upstream (supply-chain safety).
@@ -45,18 +49,17 @@ prepare() {
     echo "Refusing to build: upstream is not the pinned commit" >&2; exit 1; }
 
   git -C "$BUILD" apply --check "$HERE/patches/deck-identity.patch"
-  # Re-running bootstrap must be idempotent: reverse first if already applied.
-  if git -C "$BUILD" apply --reverse --check "$HERE/patches/deck-identity.patch" 2>/dev/null; then
-    echo "Deck identity patch already applied"
-  else
-    git -C "$BUILD" apply "$HERE/patches/deck-identity.patch"
-  fi
+  git -C "$BUILD" apply "$HERE/patches/deck-identity.patch"
 
   if ! command -v pnpm >/dev/null 2>&1; then
     echo "pnpm $PNPM_VERSION is required. Install it with: npm i -g pnpm@$PNPM_VERSION"
     exit 1
   fi
   (cd "$BUILD" && pnpm install --frozen-lockfile)
+  # Upstream refuses to package unless the lock-pinned Electron binary has been
+  # acquired by an explicit step (lazy installs are disabled for supply-chain
+  # reasons). This runs Electron's own installer once; it is idempotent.
+  (cd "$BUILD" && node scripts/build/electron-runtime.mjs --source "$BUILD")
 }
 
 case "${1:-check}" in
@@ -71,6 +74,14 @@ case "${1:-check}" in
     prepare
     (cd "$BUILD/apps/desktop" && HERMES_DESKTOP_VARIANT=light pnpm run pack)
     echo "Unpacked app packages are under $BUILD/apps/desktop/release"
+    ;;
+  dist-linux)
+    prepare
+    # Upstream's dist:linux asks for AppImage, deb and rpm. rpm needs a host
+    # rpmbuild binary; on hosts without it the command still produces the
+    # AppImage and deb before reporting the rpm failure.
+    (cd "$BUILD/apps/desktop" && HERMES_DESKTOP_VARIANT=light pnpm run dist:linux)
+    echo "Linux distributables are under $BUILD/apps/desktop/release"
     ;;
   dev)
     prepare

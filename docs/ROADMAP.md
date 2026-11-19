@@ -62,8 +62,12 @@ each piece exists, what is real now, and what "done" means._
 - Self-test checks markup/source registration, not real browser pixels.
 - No shipped backup tool; no critical-package rules in the default config.
 - Four API actions are implemented but absent from the public action catalogue.
-- The desktop app has **no packaged binary built or smoke-tested here yet**;
-  only the fork preparation is verified.
+- The Linux desktop app is built and smoke-tested
+  (`docs/DESKTOP-SMOKE-LINUX.md`): first launch, setup skip, main chat surface,
+  composer voice controls, right sidebar, runtime identity. AppImage and deb are
+  built/type-validated and the AppImage launched headless; rpm needs host
+  `rpmbuild`. Real-token chat, approval cards, project list, macOS and Windows
+  are not yet verified.
 
 ---
 
@@ -136,15 +140,17 @@ Work:
 2. **Connection preseed.** `desktop/connection.json.example` shows the config
    shape with placeholders only; the domain is filled in at install time, the
    token is typed in the app, never injected by a script.
-3. **Renderer tweaks.** Carry the right-side chat dock, in-composer mic and
-   scrollable tab strips into the forked renderer. Upstream already docks
-   preview panes on the right, so this is a small patch, not a new UI.
+3. **Renderer decision (made from the real build).** No renderer patch: the
+   pinned upstream already has a right sidebar/preview panes, composer voice
+   controls and layout/HUD controls. The web UI keeps its right-docked popup +
+   Fullscreen button; the desktop keeps native full-window chat. See
+   `docs/DESKTOP-SMOKE-LINUX.md`.
 4. **Branding.** Add our icon set to `desktop/assets`, keep the MIT attribution
    file, and disable upstream's updater feed (already in the identity patch).
-5. **Build gates (on target).** `bootstrap.sh build` for Linux AppImage/deb
-   first, then macOS DMG/zip, then Windows MSIX. Smoke test first launch,
-   direct connection, one chat message, voice button state, approval card,
-   project list.
+5. **Build gates.** `bootstrap.sh build` (unpacked) and `dist:linux` produced
+   AppImage + deb and a headless launch proof; rpm blocked on host `rpmbuild`.
+   Still to do: direct connection with a real token, one chat message, approval
+   card, project list, then macOS DMG/zip and Windows MSIX.
 
 **Acceptance criteria**
 - A fresh profile connects straight to the Hermes gateway; no token in git/logs;
@@ -153,8 +159,9 @@ Work:
   is disabled until a model is installed.
 - No `hermes serve` process is started by the app on the desktop.
 - Two containers still; `hermes` continues to own 8642/9119.
-- Linux package built and launched in a clean profile first; macOS then Windows
-  compiled and reported honestly (unsigned builds noted if needed).
+- Linux AppImage/deb built and launched in a clean profile (done, see evidence
+  doc); macOS then Windows compiled and reported honestly (unsigned builds noted
+  if needed). rpm is optional and blocked on missing `rpmbuild`.
 
 **Commands**
 ```bash
